@@ -1,8 +1,15 @@
+build/
+bin/
+
 # Compiled Object files
 *.slo
 *.lo
 *.o
 *.obj
+
+# graphics files
+*.mtl
+*.dae
 
 # Precompiled Headers
 *.gch
@@ -27,3 +34,6 @@
 *.exe
 *.out
 *.app
+
+# Zip
+*.zip
