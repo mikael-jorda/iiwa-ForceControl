@@ -20,14 +20,9 @@ const string robot_name = "Kuka-IIWA";
 const string camera_name = "camera_fixed";
 
 // redis keys:
-// - write:
-// const std::string JOINT_ANGLES_DES_KEY  = "scl::robot::iiwaBot::sensors::q_des";
-// const std::string JOINT_TORQUES_COMMANDED_KEY = "scl::robot::iiwaBot::actuators::fgc";
 // - read:
-const std::string JOINT_ANGLES_KEY  = "scl::robot::iiwaBot::sensors::q";
-const std::string JOINT_VELOCITIES_KEY = "scl::robot::iiwaBot::sensors::dq";
-// const std::string FGC_ENABLE_KEY  = "scl::robot::iiwaBot::fgc_command_enabled";
-// const std::string JOINT_TORQUES_KEY = "scl::robot::iiwaBot::sensors::fgc";
+const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
+const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
 
 // callback to print glfw errors
 void glfwError(int error, const char* description);

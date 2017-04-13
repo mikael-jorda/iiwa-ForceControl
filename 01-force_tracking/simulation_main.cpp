@@ -23,14 +23,11 @@ const string robot_name = "Kuka-IIWA";
 
 // redis keys:
 // - read:
-// const std::string JOINT_ANGLES_DES_KEY  = "scl::robot::iiwaBot::sensors::q_des";
-const std::string JOINT_TORQUES_COMMANDED_KEY = "scl::robot::iiwaBot::actuators::fgc";
+const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::iiwaForceControl::iiwaBot::actuators::fgc";
 // - write:
-const std::string JOINT_ANGLES_KEY  = "scl::robot::iiwaBot::sensors::q";
-const std::string JOINT_VELOCITIES_KEY = "scl::robot::iiwaBot::sensors::dq";
-const std::string SIM_TIMESTAMP_KEY = "scl::robot::iiwaBot::timestamp";
-// const std::string FGC_ENABLE_KEY  = "scl::robot::iiwaBot::fgc_command_enabled";
-// const std::string JOINT_TORQUES_KEY = "scl::robot::iiwaBot::sensors::fgc";
+const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
+const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
+const std::string SIM_TIMESTAMP_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::timestamp";
 
 int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
