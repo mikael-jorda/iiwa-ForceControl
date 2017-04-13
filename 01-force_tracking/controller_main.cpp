@@ -8,6 +8,7 @@
 #include <string>
 
 #include "tasks/OrientationTask.h"
+#include "tasks/HybridPositionTask.h"
 
 #include <signal.h>
 bool runloop = true;
@@ -76,21 +77,6 @@ int main() {
 
 	double joint_kv = 20.0;
 
-	// operational space position task
-	std::string op_pos_task_link_name = "link6";
-	Eigen::Vector3d op_pos_task_pos_in_link = Eigen::Vector3d(0.0, 0.0, 0.0);
-	Eigen::Vector3d op_pos_task_x, op_pos_task_dx, op_pos_task_x_desired, op_pos_task_f;
-	Eigen::MatrixXd op_pos_task_jacobian(3,dof), op_pos_task_J(3,dof);
-	Eigen::MatrixXd Lambda_pos(3,3);
-	// Eigen::MatrixXd op_pos_task_N(dof,dof);
-	Eigen::VectorXd op_pos_task_torques(dof);
-
-	double op_pos_kp = 100.0;
-	double op_pos_kv = 20.0;
-
-	Eigen::Vector3d initial_position;
-	robot->position(initial_position,op_pos_task_link_name,op_pos_task_pos_in_link);
-
 	// Orientation task
 	OrientationTask ori_task = OrientationTask(dof);
 	ori_task.link_name = "link6";
@@ -101,7 +87,33 @@ int main() {
 	Eigen::Matrix3d initial_orientation;
 	robot->rotation(initial_orientation, ori_task.link_name);
 	ori_task.desired_orientation = initial_orientation;
-	ori_task.desired_orientation = ori_task.current_orientation;
+	ori_task.desired_orientation = initial_orientation;
+
+	// operational space position task
+	HybridPositionTask pos_task = HybridPositionTask(dof);
+	pos_task.link_name = "link6";
+	pos_task.pos_in_link = Eigen::Vector3d(0.0, 0.0, 0.0);
+	pos_task.kp = 100.0;
+	pos_task.kv = 20.0;
+
+	Eigen::VectorXd pos_task_torques(dof);
+	Eigen::Vector3d initial_position;
+	robot->position(initial_position,pos_task.link_name,pos_task.pos_in_link);
+	pos_task.current_position = initial_position;
+	pos_task.desired_position = initial_position;
+
+
+	// std::string op_pos_task_link_name = "link6";
+	// Eigen::Vector3d op_pos_task_pos_in_link = Eigen::Vector3d(0.0, 0.0, 0.0);
+	// Eigen::Vector3d op_pos_task_x, op_pos_task_dx, op_pos_task_x_desired, op_pos_task_f;
+	// Eigen::MatrixXd op_pos_task_jacobian(3,dof), op_pos_task_J(3,dof);
+	// Eigen::MatrixXd Lambda_pos(3,3);
+	// // Eigen::MatrixXd op_pos_task_N(dof,dof);
+	// Eigen::VectorXd op_pos_task_torques(dof);
+
+	// double op_pos_kp = 100.0;
+	// double op_pos_kv = 20.0;
+
 
 	// create a loop timer
 	double control_freq = 1000;
@@ -140,32 +152,19 @@ int main() {
 			robot->operationalSpaceMatrices(ori_task.Lambda, ori_task.Jbar, ori_task.N,
 									ori_task.projected_jacobian, N_prec);
 			N_prec = ori_task.N;
-			N_tmp = N_prec;
+			// N_tmp = N_prec;
 
 			// position controller 
-			robot->Jv(op_pos_task_jacobian,op_pos_task_link_name,op_pos_task_pos_in_link);
-			op_pos_task_J = op_pos_task_jacobian*N_prec;
-			robot->taskInertiaMatrix(Lambda_pos,op_pos_task_J);
-			robot->nullspaceMatrix(N_prec,op_pos_task_J,N_tmp);
-			N_tmp = N_prec;
+			robot->Jv(pos_task.jacobian,pos_task.link_name,pos_task.pos_in_link);
+			pos_task.projected_jacobian = pos_task.jacobian * N_prec;
+			robot->operationalSpaceMatrices(pos_task.Lambda, pos_task.Jbar, pos_task.N,
+									pos_task.projected_jacobian, N_prec);
+			N_prec = pos_task.N;
 
 		}
 
 		////////////////////////////// Compute joint torques
 		double time = controller_counter/control_freq;
-
-		//---- position controller 
-		// find current position
-		robot->position(op_pos_task_x,op_pos_task_link_name,op_pos_task_pos_in_link);
-		op_pos_task_dx = op_pos_task_J*robot->_dq;
-		// update desired position
-		double freq = 0.25;
-		double amplitude = 0.2;
-		// op_pos_task_x_desired = initial_position + amplitude/2*Eigen::Vector3d(cos(2*M_PI*freq*time)-1,sin(2*M_PI*freq*time),0);
-		op_pos_task_x_desired = initial_position;
-		// compute joint torques
-		op_pos_task_f = Lambda_pos*(-op_pos_kp*(op_pos_task_x - op_pos_task_x_desired) - op_pos_kv*op_pos_task_dx);
-		op_pos_task_torques = op_pos_task_J.transpose()*op_pos_task_f;
 
 		//---- orientation controller
 		// update current orientation
@@ -179,7 +178,7 @@ int main() {
 			ori_update << 1, 0, 0,
 					  0, cos(fr), -sin(fr),
 					  0, sin(fr), cos(fr);
-			ori_task.desired_orientation = ori_update * ori_task.desired_orientation;
+			// ori_task.desired_orientation = ori_update * ori_task.desired_orientation;
 		}
 		redis_client.setEigenMatrixDerivedString(ORI_TASK_R_KEY, ori_task.current_orientation);
 		redis_client.setEigenMatrixDerivedString(ORI_TASK_R_DESIRED_KEY, ori_task.desired_orientation);
@@ -187,11 +186,30 @@ int main() {
 		ori_task.computeTorques(ori_task_torques);
 		redis_client.setEigenMatrixDerivedString(ORI_TASK_JOINT_TORQUES_KEY, ori_task_torques);
 
+		//---- position controller 
+		// find current position
+		robot->position(pos_task.current_position, pos_task.link_name, pos_task.pos_in_link);
+		pos_task.current_velocity = pos_task.projected_jacobian * robot->_dq;
+		// update desired position
+		double freq = 0.25;
+		double amplitude = 0.1;
+		pos_task.desired_position = initial_position + amplitude/2*Eigen::Vector3d(cos(2*M_PI*freq*time)-1,sin(2*M_PI*freq*time),0);
+		// pos_task.desired_position = initial_position;
+		pos_task.desired_force = Eigen::Vector3d(0.0,0.0,-0.1);
+
+		if (controller_counter == 3000)
+		{
+			pos_task.setForceAxis(Eigen::Vector3d(0,0,1));
+		}
+
+		// compute joint torques
+		pos_task.computeTorques(pos_task_torques);
+
 		//----- Joint nullspace damping
 		joint_task_torques = robot->_M*( - joint_kv*robot->_dq);
 
 		//------ Final torques
-		command_torques = op_pos_task_torques + ori_task_torques + N_prec.transpose()*joint_task_torques;
+		command_torques = pos_task_torques + ori_task_torques + N_prec.transpose()*joint_task_torques;
 
 		redis_client.setEigenMatrixDerivedString(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
