@@ -37,9 +37,43 @@ public:
 		orientation_error = Eigen::Vector3d::Zero();
 	}
 
+	// computes the task torques. PD controller for now
+	void computeTorques(Eigen::VectorXd& task_joint_torques)
+	{
+		orientationError(orientation_error, desired_orientation, current_orientation);
+		task_force = Lambda*(-kp*orientation_error - kv*(current_angular_velocity - desired_angular_velocity ));
+
+		task_joint_torques = projected_jacobian.transpose()*task_force;
+	}
+
+	Eigen::Vector3d getOrientationError()
+	{return orientation_error;}
+
+	Eigen::Vector3d getTaskForce()
+	{return task_force;}
+
+	std::string link_name;
+
+	Eigen::Matrix3d current_orientation;
+	Eigen::Matrix3d desired_orientation;
+
+	Eigen::Vector3d current_angular_velocity;
+	Eigen::Vector3d desired_angular_velocity;
+
+	double kp;
+	double kv;
+
+	Eigen::MatrixXd jacobian;
+	Eigen::MatrixXd projected_jacobian;
+	Eigen::MatrixXd Lambda;
+	Eigen::MatrixXd Jbar;
+	Eigen::MatrixXd N;
+
+private:
+
 	void orientationError(Eigen::Vector3d& delta_phi,
-		const Eigen::Matrix3d& desired_orientation,
-		const Eigen::Matrix3d& current_orientation)
+	const Eigen::Matrix3d& desired_orientation,
+	const Eigen::Matrix3d& current_orientation)
 	{
 	// check that the matrices are valid rotations
 		Eigen::Matrix3d Q1 = desired_orientation*desired_orientation.transpose() - Eigen::Matrix3d::Identity();
@@ -61,33 +95,6 @@ public:
 		}
 	}
 
-	// computes the task torques. PD controller for now
-	void computeTorques(Eigen::VectorXd& task_joint_torques)
-	{
-		orientationError(orientation_error, desired_orientation, current_orientation);
-		task_force = Lambda*(-kp*orientation_error - kv*(current_angular_velocity - desired_angular_velocity ));
-
-		task_joint_torques = projected_jacobian.transpose()*task_force;
-	}
-
-	std::string link_name;
-
-	Eigen::Matrix3d current_orientation;
-	Eigen::Matrix3d desired_orientation;
-
-	Eigen::Vector3d current_angular_velocity;
-	Eigen::Vector3d desired_angular_velocity;
-
-	double kp;
-	double kv;
-
-	Eigen::MatrixXd jacobian;
-	Eigen::MatrixXd projected_jacobian;
-	Eigen::MatrixXd Lambda;
-	Eigen::MatrixXd Jbar;
-	Eigen::MatrixXd N;
-
-private:
 	Eigen::Vector3d task_force;
 	Eigen::Vector3d orientation_error;
 };

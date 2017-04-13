@@ -102,19 +102,6 @@ int main() {
 	pos_task.current_position = initial_position;
 	pos_task.desired_position = initial_position;
 
-
-	// std::string op_pos_task_link_name = "link6";
-	// Eigen::Vector3d op_pos_task_pos_in_link = Eigen::Vector3d(0.0, 0.0, 0.0);
-	// Eigen::Vector3d op_pos_task_x, op_pos_task_dx, op_pos_task_x_desired, op_pos_task_f;
-	// Eigen::MatrixXd op_pos_task_jacobian(3,dof), op_pos_task_J(3,dof);
-	// Eigen::MatrixXd Lambda_pos(3,3);
-	// // Eigen::MatrixXd op_pos_task_N(dof,dof);
-	// Eigen::VectorXd op_pos_task_torques(dof);
-
-	// double op_pos_kp = 100.0;
-	// double op_pos_kv = 20.0;
-
-
 	// create a loop timer
 	double control_freq = 1000;
 	LoopTimer timer;

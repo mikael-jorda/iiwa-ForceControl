@@ -69,6 +69,18 @@ public:
 		sigma_position = Eigen::Matrix3d::Identity() - sigma_force;
 	}
 
+	Eigen::Vector3d getTaskForce()
+	{return task_force;}
+
+	Eigen::Vector3d getForceRelatedForces()
+	{return force_related_forces;}
+
+	Eigen::Vector3d getPositionRelatedForces()
+	{return position_related_forces;}
+
+	Eigen::Vector3d getForceAxis()
+	{return force_axis;}
+
 	std::string link_name;
 	Eigen::Vector3d pos_in_link;
 
