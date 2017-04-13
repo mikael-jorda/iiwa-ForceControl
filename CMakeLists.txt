@@ -5,7 +5,9 @@ SET(CMAKE_CXX_FLAGS "-std=c++11")
 # set common source
 set (IIWA_FORCECONTROL_COMMON_SOURCE
 	${PROJECT_SOURCE_DIR}/src/redis/RedisClient.h
-	${PROJECT_SOURCE_DIR}/src/timer/LoopTimer.h)
+	${PROJECT_SOURCE_DIR}/src/timer/LoopTimer.h
+	${PROJECT_SOURCE_DIR}/src/tasks/OrientationTask.h
+	)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 # set common dependencies
