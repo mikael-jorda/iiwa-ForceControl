@@ -34,7 +34,14 @@ const std::string FGC_ENABLE_KEY  = "sai2::iiwaForceControl::iiwaBot::fgc_comman
 const std::string ORI_TASK_R_DESIRED_KEY = "sai2::iiwaForceControl::iiwaBot::controller::ori_task::R_desired";
 const std::string ORI_TASK_R_KEY = "sai2::iiwaForceControl::iiwaBot::controller::ori_task::R";
 const std::string ORI_TASK_JOINT_TORQUES_KEY = "sai2::iiwaForceControl::iiwaBot::controller::ori_task::joint_torques";
+// const std::string ORI_TASK_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::controller::ori_task::task_force";
 // const std::string ORI_TASK_ERROR_KEY = "sai2::iiwaForceControl::iiwaBot::controller::ori_task::orientation_error";
+const std::string POS_TASK_X_DESIRED_KEY = "sai2::iiwaForceControl::iiwaBot::controller::pos_task::x_desired";
+const std::string POS_TASK_X_KEY = "sai2::iiwaForceControl::iiwaBot::controller::pos_task::x";
+const std::string POS_TASK_JOINT_TORQUES_KEY = "sai2::iiwaForceControl::iiwaBot::controller::pos_task::joint_torques";
+// const std::string POS_TASK_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::controller::pos_task::task_force";
+// const std::string POS_TASK_PFORCE_KEY = "sai2::iiwaForceControl::iiwaBot::controller::pos_task::force_related_force";
+// const std::string POS_TASK_FFORCE_KEY = "sai2::iiwaForceControl::iiwaBot::controller::pos_task::position_related_force";
 
  void sighandler(int sig)
  { runloop = false; }
