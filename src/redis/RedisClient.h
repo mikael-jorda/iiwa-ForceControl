@@ -77,6 +77,34 @@ public:
 		return true;
 	}
 
+	bool getCommandIs(const string &cmd_mssg, string &ret_string) {
+		reply_ = (redisReply *)redisCommand(context_, "GET %s", cmd_mssg.c_str());
+		if (NULL == reply_ || REDIS_REPLY_ERROR == reply_->type) {
+			throw(runtime_error("Server error in fetching data!"));
+			//TODO: indicate what error
+		}
+		if (REDIS_REPLY_NIL == reply_->type) {
+			// cout << "\nNo data on server.. Missing key?";
+			return false;
+		}
+		ret_string = reply_->str;
+		return true;
+	}
+
+	bool getCommandIs(const string &cmd_mssg, double &ret_double) {
+		reply_ = (redisReply *)redisCommand(context_, "GET %s", cmd_mssg.c_str());
+		if (NULL == reply_ || REDIS_REPLY_ERROR == reply_->type) {
+			throw(runtime_error("Server error in fetching data!"));
+			//TODO: indicate what error
+		}
+		if (REDIS_REPLY_NIL == reply_->type) {
+			// cout << "\nNo data on server.. Missing key?";
+			return false;
+		}
+		ret_double = std::stod(reply_->str);
+		return true;
+	}
+
 	void setCommandIs(const string &cmd_mssg, const string &data_mssg) {
 		reply_ = (redisReply *)redisCommand(context_, "SET %s %s", cmd_mssg.c_str(), data_mssg.c_str());
 		// NOTE: set commands dont check for write errors.

@@ -42,6 +42,7 @@ const std::string POS_TASK_JOINT_TORQUES_KEY = "sai2::iiwaForceControl::iiwaBot:
 // const std::string POS_TASK_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::controller::pos_task::task_force";
 // const std::string POS_TASK_PFORCE_KEY = "sai2::iiwaForceControl::iiwaBot::controller::pos_task::force_related_force";
 // const std::string POS_TASK_FFORCE_KEY = "sai2::iiwaForceControl::iiwaBot::controller::pos_task::position_related_force";
+const std::string FORCE_SENSOR_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::force_sensor::force";
 
  void sighandler(int sig)
  { runloop = false; }
@@ -121,6 +122,8 @@ int main() {
 	fgc_command_enabled = "1";
 	redis_client.setCommandIs(FGC_ENABLE_KEY,fgc_command_enabled);
 
+	Eigen::Vector3d sensed_force = Eigen::Vector3d::Zero();
+
 	// while window is open:
 	while (runloop) {
 
@@ -130,6 +133,7 @@ int main() {
 		// read from Redis
 		redis_client.getEigenMatrixDerivedString(JOINT_ANGLES_KEY, robot->_q);
 		redis_client.getEigenMatrixDerivedString(JOINT_VELOCITIES_KEY, robot->_dq);
+		redis_client.getCommandIs(FORCE_SENSOR_FORCE_KEY, sensed_force(2));
 
 		// update the model 20 times slower
 		if(controller_counter%20 == 0)
@@ -180,6 +184,8 @@ int main() {
 		ori_task.computeTorques(ori_task_torques);
 		redis_client.setEigenMatrixDerivedString(ORI_TASK_JOINT_TORQUES_KEY, ori_task_torques);
 
+		sensed_force = ori_task.current_orientation*sensed_force;
+
 		//---- position controller 
 		// find current position
 		robot->position(pos_task.current_position, pos_task.link_name, pos_task.pos_in_link);
@@ -187,9 +193,14 @@ int main() {
 		// update desired position
 		double freq = 0.25;
 		double amplitude = 0.1;
-		pos_task.desired_position = initial_position + amplitude/2*Eigen::Vector3d(cos(2*M_PI*freq*time)-1,sin(2*M_PI*freq*time),0);
+		// pos_task.desired_position = initial_position + amplitude/2*Eigen::Vector3d(cos(2*M_PI*freq*time)-1,sin(2*M_PI*freq*time),0);
 		// pos_task.desired_position = initial_position;
-		pos_task.desired_force = Eigen::Vector3d(0.0,0.0,-0.1);
+		if(sensed_force(2) > 5)
+		{
+			pos_task.desired_position(2) -= 0.0001;
+		}
+		std::cout << sensed_force << std::endl;
+		pos_task.desired_force = Eigen::Vector3d(0.0,0.0,-5);
 
 		if (controller_counter == 3000)
 		{

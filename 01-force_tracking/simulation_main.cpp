@@ -18,7 +18,7 @@ void sighandler(int sig)
 using namespace std;
 
 const string world_file = "resources/01-force_tracking/world.urdf";
-const string robot_file = "../robot_models/kuka_iiwa/kuka_iiwa.urdf";
+const string robot_file = "../robot_models/kuka_iiwa/kuka_iiwa_force_sensor.urdf";
 const string robot_name = "Kuka-IIWA";
 
 // redis keys:
@@ -28,6 +28,8 @@ const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::iiwaForceControl::iiwaBot
 const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
 const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
 const std::string SIM_TIMESTAMP_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::timestamp";
+const std::string FORCE_SENSOR_POSITION_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::force_sensor::position";
+const std::string FORCE_SENSOR_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::force_sensor::force";
 
 int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
@@ -58,7 +60,7 @@ int main() {
 	sim->setJointPosition(robot_name, 5, 90.0/180.0*M_PI);
 
 	// create a loop timer
-	double sim_freq = 1000;  // set the simulation frequency. Ideally 10kHz
+	double sim_freq = 10000;  // set the simulation frequency. Ideally 10kHz
 	LoopTimer timer;
 	timer.setLoopFrequency(sim_freq);   // 10 KHz
 	// timer.setThreadHighPriority();  // make timing more accurate. requires running executable as sudo.
@@ -67,25 +69,45 @@ int main() {
 
 
 	Eigen::VectorXd robot_torques(7);
+	double sensor_force = 0.0;
+	Eigen::VectorXd robot_plus_sensor_torques(8);
+
+	double sensor_position = 0.0;
+	double sensor_velocity = 0.0;
+	double sensor_stiffness = 3000;
+	double sensor_damping = 400;
+	Eigen::VectorXd robot_positions(7);
+	Eigen::VectorXd robot_velocities(7);
 	while (runloop) {
 		// wait for next scheduled loop
 		timer.waitForNextLoop();
 
 		// read torques from Redis
 		redis_client.getEigenMatrixDerivedString(JOINT_TORQUES_COMMANDED_KEY, robot_torques);
-		sim->setJointTorques(robot_name, robot_torques);
+
+		robot_plus_sensor_torques << robot_torques, sensor_force;
+		sim->setJointTorques(robot_name, robot_plus_sensor_torques);
 
 		// update simulation by 1ms
 		sim->integrate(1/sim_freq);
 
+		// TODO : compute sensor force from sensor position (when to do it?? before or after integrate)
+		sensor_force = -sensor_stiffness*sensor_position - sensor_damping*sensor_velocity;
+
 		// update kinematic models
 		sim->getJointPositions(robot_name, robot->_q);
 		sim->getJointVelocities(robot_name, robot->_dq);
+		robot_positions = robot->_q.head<7>();
+		sensor_position = robot->_q(7);
+		robot_velocities = robot->_dq.head<7>();
+		sensor_velocity = robot->_dq(7);
 		robot->updateModel();
-		
+
 		// write joint kinematics to redis
-		redis_client.setEigenMatrixDerivedString(JOINT_ANGLES_KEY, robot->_q);
-		redis_client.setEigenMatrixDerivedString(JOINT_VELOCITIES_KEY, robot->_dq);
+		redis_client.setEigenMatrixDerivedString(JOINT_ANGLES_KEY, robot_positions);
+		redis_client.setEigenMatrixDerivedString(JOINT_VELOCITIES_KEY, robot_velocities);
+		redis_client.setCommandIs(FORCE_SENSOR_POSITION_KEY, std::to_string(sensor_position));
+		redis_client.setCommandIs(FORCE_SENSOR_FORCE_KEY, std::to_string(-sensor_force));
 
 		redis_client.setCommandIs(SIM_TIMESTAMP_KEY,std::to_string(timer.elapsedTime()));
 
