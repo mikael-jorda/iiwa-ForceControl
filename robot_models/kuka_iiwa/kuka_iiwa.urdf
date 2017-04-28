@@ -146,12 +146,12 @@
                 <mesh filename="meshes/link6.obj" scale="1 1 1" />
             </geometry>
         </visual>
-        <collision>
+<!--         <collision>
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
                 <mesh filename="meshes/link6.obj" scale="1 1 1" />
             </geometry>
-        </collision>
+        </collision> -->
     </link>
     <joint name="j0" type="revolute">
         <parent link="base_link" />
