@@ -22,12 +22,18 @@ const string robot_name = "Kuka-IIWA";
 unsigned long long controller_counter = 0;
 
 // redis keys:
+// // - write:
+// const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::iiwaForceControl::iiwaBot::actuators::fgc";
+// // - read:
+// const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
+// const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
+// const std::string FGC_ENABLE_KEY  = "sai2::iiwaForceControl::iiwaBot::fgc_command_enabled";
 // - write:
-const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::iiwaForceControl::iiwaBot::actuators::fgc";
+const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::KUKA_IIWA::actuators::fgc";
 // - read:
-const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
-const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
-const std::string FGC_ENABLE_KEY  = "sai2::iiwaForceControl::iiwaBot::fgc_command_enabled";
+const std::string JOINT_ANGLES_KEY  = "sai2::KUKA_IIWA::sensors::q";
+const std::string JOINT_VELOCITIES_KEY = "sai2::KUKA_IIWA::sensors::dq";
+const std::string JOINT_TORQUES_SENSED_KEY = "sai2::KUKA_IIWA::sensors::torques";
 
  void sighandler(int sig)
  { runloop = false; }
@@ -52,8 +58,8 @@ int main() {
 	auto robot = new Model::ModelInterface(robot_file, Model::rbdl_kuka, Model::urdf, true);
 
 	// read from Redis
-	redis_client.getEigenMatrixDerivedString(JOINT_ANGLES_KEY, robot->_q);
-	redis_client.getEigenMatrixDerivedString(JOINT_VELOCITIES_KEY, robot->_dq);
+	redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
+	redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot->_dq);
 
 	////////////////////////////////////////////////
 	///    Prepare the different controllers   /////
@@ -67,12 +73,15 @@ int main() {
 
 	// Joint control
 	Eigen::VectorXd joint_task_desired_position(dof), joint_task_torques(dof);
+	Eigen::VectorXd initial_joint_position(dof);
+	initial_joint_position = robot->_q;
 
-	double joint_kv = 20.0;
+	double joint_kp = 10.0;
+	double joint_kv = 10.0;
 
 	// operational space position task
 	HybridPositionTask pos_task = HybridPositionTask(dof);
-	pos_task.link_name = "link6";
+	pos_task.link_name = "link5";
 	pos_task.pos_in_link = Eigen::Vector3d(0.0, 0.0, 0.0);
 	pos_task.kp = 100.0;
 	pos_task.kv = 20.0;
@@ -98,8 +107,8 @@ int main() {
 		timer.waitForNextLoop();
 
 		// read from Redis
-		redis_client.getEigenMatrixDerivedString(JOINT_ANGLES_KEY, robot->_q);
-		redis_client.getEigenMatrixDerivedString(JOINT_VELOCITIES_KEY, robot->_dq);
+		redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
+		redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot->_dq);
 
 		// update the model 20 times slower
 		if(controller_counter%20 == 0)
@@ -134,19 +143,19 @@ int main() {
 		pos_task.computeTorques(pos_task_torques);
 
 		//----- Joint nullspace damping
-		joint_task_torques = robot->_M*( - joint_kv*robot->_dq);
+		joint_task_torques = robot->_M*( -joint_kp*(robot->_q - initial_joint_position) - joint_kv*robot->_dq);
 
 		//------ Final torques
-		command_torques = pos_task_torques + N_prec.transpose()*joint_task_torques;
+		command_torques = pos_task_torques +  N_prec.transpose()*joint_task_torques;
 
-		redis_client.setEigenMatrixDerivedString(JOINT_TORQUES_COMMANDED_KEY, command_torques);
+		redis_client.setEigenMatrixDerived(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
 		controller_counter++;
 
 	}
 
     command_torques << 0,0,0,0,0,0,0;
-    redis_client.setEigenMatrixDerivedString(JOINT_TORQUES_COMMANDED_KEY, command_torques);
+    redis_client.setEigenMatrixDerived(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
     double end_time = timer.elapsedTime();
     std::cout << "\n";
