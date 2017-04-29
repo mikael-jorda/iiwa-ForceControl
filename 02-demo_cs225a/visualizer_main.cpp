@@ -21,8 +21,10 @@ const string camera_name = "camera_fixed";
 
 // redis keys:
 // - read:
-const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
-const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
+// const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
+// const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
+const std::string JOINT_ANGLES_KEY  = "sai2::KUKA_IIWA::sensors::q";
+const std::string JOINT_VELOCITIES_KEY = "sai2::KUKA_IIWA::sensors::dq";
 
 // callback to print glfw errors
 void glfwError(int error, const char* description);
@@ -57,7 +59,7 @@ int main() {
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 
 	// load robots
-	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
+	auto robot = new Model::ModelInterface(robot_file, Model::rbdl_kuka, Model::urdf, false);
 
 	/*------- Set up visualization -------*/
     // set up error callback
@@ -97,8 +99,8 @@ int main() {
     while (!glfwWindowShouldClose(window))
 	{
 		// read from Redis
-		redis_client.getEigenMatrixDerivedString(JOINT_ANGLES_KEY, robot->_q);
-		redis_client.getEigenMatrixDerivedString(JOINT_VELOCITIES_KEY, robot->_dq);
+		redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
+		redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot->_dq);
 
 		// update transformations
 		robot->updateModel();

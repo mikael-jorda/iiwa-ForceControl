@@ -22,12 +22,19 @@ const string robot_file = "../robot_models/kuka_iiwa/kuka_iiwa.urdf";
 const string robot_name = "Kuka-IIWA";
 
 // redis keys:
+// // - read:
+// const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::iiwaForceControl::iiwaBot::actuators::fgc";
+// // - write:
+// const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
+// const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
+// const std::string SIM_TIMESTAMP_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::timestamp";
+
 // - read:
-const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::iiwaForceControl::iiwaBot::actuators::fgc";
+const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::KUKA_IIWA::actuators::fgc";
 // - write:
-const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
-const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
-const std::string SIM_TIMESTAMP_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::timestamp";
+const std::string JOINT_ANGLES_KEY  = "sai2::KUKA_IIWA::sensors::q";
+const std::string JOINT_VELOCITIES_KEY = "sai2::KUKA_IIWA::sensors::dq";
+const std::string JOINT_TORQUES_SENSED_KEY = "sai2::KUKA_IIWA::sensors::torques";
 
 int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
@@ -49,7 +56,8 @@ int main() {
 	auto sim = new Simulation::SimulationInterface(world_file, Simulation::sai2simulation, Simulation::urdf, false);
 
 	// load robots
-	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
+	// auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
+	auto robot = new Model::ModelInterface(robot_file, Model::rbdl_kuka, Model::urdf, false);
 
 	// set initial position to match kuka driver
 	sim->setJointPosition(robot_name, 0, 90.0/180.0*M_PI);
@@ -72,7 +80,7 @@ int main() {
 		timer.waitForNextLoop();
 
 		// read torques from Redis
-		redis_client.getEigenMatrixDerivedString(JOINT_TORQUES_COMMANDED_KEY, robot_torques);
+		redis_client.getEigenMatrixDerived(JOINT_TORQUES_COMMANDED_KEY, robot_torques);
 		sim->setJointTorques(robot_name, robot_torques);
 
 		// update simulation by 1ms
@@ -84,10 +92,10 @@ int main() {
 		robot->updateModel();
 		
 		// write joint kinematics to redis
-		redis_client.setEigenMatrixDerivedString(JOINT_ANGLES_KEY, robot->_q);
-		redis_client.setEigenMatrixDerivedString(JOINT_VELOCITIES_KEY, robot->_dq);
+		redis_client.setEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
+		redis_client.setEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot->_dq);
 
-		redis_client.setCommandIs(SIM_TIMESTAMP_KEY,std::to_string(timer.elapsedTime()));
+		// redis_client.setCommandIs(SIM_TIMESTAMP_KEY,std::to_string(timer.elapsedTime()));
 
 	}
 	return 0;
