@@ -28,8 +28,8 @@ public:
 		current_velocity = Eigen::Vector3d::Zero();
 		desired_velocity = Eigen::Vector3d::Zero();
 
-		kp = 0.0;
-		kv = 0.0;
+		kp = Eigen::Matrix3d::Zero();
+		kv = Eigen::Matrix3d::Zero();
 
 		jacobian = Eigen::MatrixXd::Zero(3,dof);
 		projected_jacobian = Eigen::MatrixXd::Zero(3,dof);
@@ -93,8 +93,8 @@ public:
 	Eigen::Vector3d current_force;
 	Eigen::Vector3d desired_force;
 
-	double kp;
-	double kv;
+	Eigen::Matrix3d kp;
+	Eigen::Matrix3d kv;
 
 	Eigen::MatrixXd jacobian;
 	Eigen::MatrixXd projected_jacobian;
