@@ -71,4 +71,5 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE        ${PROJECT_SOURCE_DIR}/bin)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${PROJECT_SOURCE_DIR}/bin)
 set (IIWA_FORCECONTROL_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 
-add_subdirectory(01-force_tracking)
+# add_subdirectory(01-force_tracking)
+add_subdirectory(02-demo_cs225a)

@@ -1,12 +1,12 @@
 # create an executable
-ADD_EXECUTABLE (controller controller_main.cpp)
-ADD_EXECUTABLE (simulation simulation_main.cpp)
-ADD_EXECUTABLE (visualizer visualizer_main.cpp)
+ADD_EXECUTABLE (controller_01 controller_main.cpp)
+ADD_EXECUTABLE (simulation_01 simulation_main.cpp)
+ADD_EXECUTABLE (visualizer_01 visualizer_main.cpp)
 
 # and link the library against the executable
-TARGET_LINK_LIBRARIES (controller ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
-TARGET_LINK_LIBRARIES (simulation ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
-TARGET_LINK_LIBRARIES (visualizer ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (controller_01 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (simulation_01 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (visualizer_01 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
 
 # export resources such as model files.
 # NOTE: this requires an install build
