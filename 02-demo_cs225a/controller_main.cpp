@@ -16,8 +16,8 @@ void stop(int){runloop = false;}
 
 using namespace std;
 
-const string world_file = "resources/02-demo_cs225a/world.urdf";
-const string robot_file = "../robot_models/kuka_iiwa/kuka_iiwa.urdf";
+const string world_file = "../resources/02-demo_cs225a/world.urdf";
+const string robot_file = "../../robot_models/kuka_iiwa/02-demo_cs225a/kuka_iiwa.urdf";
 const string robot_name = "Kuka-IIWA";
 
 unsigned long long controller_counter = 0;
@@ -61,6 +61,7 @@ int main() {
 	signal(SIGINT, &sighandler);
 
 	// load robots
+	// auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, true);
 	auto robot = new Model::ModelInterface(robot_file, Model::rbdl_kuka, Model::urdf, true);
 
 	// read from Redis

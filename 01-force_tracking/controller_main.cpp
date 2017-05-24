@@ -16,8 +16,8 @@ void stop(int){runloop = false;}
 
 using namespace std;
 
-const string world_file = "resources/world.urdf";
-const string robot_file = "../robot_models/kuka_iiwa/kuka_iiwa.urdf";
+const string world_file = "../resources/world.urdf";
+const string robot_file = "../../robot_models/kuka_iiwa/01-force_tracking/kuka_iiwa.urdf";
 const string robot_name = "Kuka-IIWA";
 
 unsigned long long controller_counter = 0;
@@ -88,8 +88,8 @@ int main() {
 	// Orientation task
 	OrientationTask ori_task = OrientationTask(dof);
 	ori_task.link_name = "link6";
-	ori_task.kp = 500.0;
-	ori_task.kv = 70.0;
+	ori_task.setKp(500.0);
+	ori_task.setKv(70.0);
 
 	Eigen::VectorXd ori_task_torques(dof);
 	Eigen::Matrix3d initial_orientation;
@@ -101,8 +101,8 @@ int main() {
 	HybridPositionTask pos_task = HybridPositionTask(dof);
 	pos_task.link_name = "link6";
 	pos_task.pos_in_link = Eigen::Vector3d(0.0, 0.0, 0.0);
-	pos_task.kp = 100.0;
-	pos_task.kv = 20.0;
+	pos_task.setKp(100.0);
+	pos_task.setKv(20.0);
 
 	Eigen::VectorXd pos_task_torques(dof);
 	Eigen::Vector3d initial_position;

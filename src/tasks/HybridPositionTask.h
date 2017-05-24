@@ -81,6 +81,18 @@ public:
 	Eigen::Vector3d getForceAxis()
 	{return force_axis;}
 
+	// set kp for all the joints
+	void setKp(const double d)
+	{
+		kp = d*Eigen::Matrix3d::Identity();
+	}
+
+	// set kv for all the joints
+	void setKv(const double d)
+	{
+		kv = d*Eigen::Matrix3d::Identity();
+	}
+
 	std::string link_name;
 	Eigen::Vector3d pos_in_link;
 

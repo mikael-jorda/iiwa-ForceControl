@@ -14,8 +14,8 @@
 
 using namespace std;
 
-const string world_file = "resources/01-force_tracking/world.urdf";
-const string robot_file = "../robot_models/kuka_iiwa/kuka_iiwa_force_sensor.urdf";
+const string world_file = "../resources/01-force_tracking/world.urdf";
+const string robot_file = "../../robot_models/kuka_iiwa/01-force_tracking/kuka_iiwa_force_sensor.urdf";
 const string robot_name = "Kuka-IIWA";
 const string camera_name = "camera_fixed";
 

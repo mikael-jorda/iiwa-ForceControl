@@ -17,8 +17,8 @@ void sighandler(int sig)
 
 using namespace std;
 
-const string world_file = "resources/02-demo_cs225a/world.urdf";
-const string robot_file = "../robot_models/kuka_iiwa/kuka_iiwa.urdf";
+const string world_file = "../resources/02-demo_cs225a/world.urdf";
+const string robot_file = "../../robot_models/kuka_iiwa/02-demo_cs225a/kuka_iiwa.urdf";
 const string robot_name = "Kuka-IIWA";
 
 // redis keys:
@@ -61,9 +61,9 @@ int main() {
 
 	// set initial position to match kuka driver
 	sim->setJointPosition(robot_name, 0, 90.0/180.0*M_PI);
-	sim->setJointPosition(robot_name, 1, 30.0/180.0*M_PI);
+	sim->setJointPosition(robot_name, 1, -30.0/180.0*M_PI);
 	sim->setJointPosition(robot_name, 3, 60.0/180.0*M_PI);
-	sim->setJointPosition(robot_name, 5, 90.0/180.0*M_PI);
+	sim->setJointPosition(robot_name, 5, -90.0/180.0*M_PI);
 
 	// create a loop timer
 	double sim_freq = 1000;  // set the simulation frequency. Ideally 10kHz

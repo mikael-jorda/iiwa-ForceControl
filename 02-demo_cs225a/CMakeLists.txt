@@ -1,12 +1,13 @@
 # create an executable
-ADD_EXECUTABLE (controller_02 controller_main.cpp)
-ADD_EXECUTABLE (simulation_02 simulation_main.cpp)
-ADD_EXECUTABLE (visualizer_02 visualizer_main.cpp)
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IIWA_FORCECONTROL_BINARY_DIR}/02-demo_cs225a)
+ADD_EXECUTABLE (controller2 controller_main.cpp)
+ADD_EXECUTABLE (simulation2 simulation_main.cpp)
+ADD_EXECUTABLE (visualizer2 visualizer_main.cpp)
 
 # and link the library against the executable
-TARGET_LINK_LIBRARIES (controller_02 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
-TARGET_LINK_LIBRARIES (simulation_02 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
-TARGET_LINK_LIBRARIES (visualizer_02 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (controller2 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (simulation2 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (visualizer2 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
 
 # export resources such as model files.
 # NOTE: this requires an install build
