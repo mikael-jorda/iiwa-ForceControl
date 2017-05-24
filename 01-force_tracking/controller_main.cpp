@@ -16,8 +16,8 @@ void stop(int){runloop = false;}
 
 using namespace std;
 
-const string world_file = "resources/world.urdf";
-const string robot_file = "../robot_models/kuka_iiwa/kuka_iiwa.urdf";
+const string world_file = "../resources/world.urdf";
+const string robot_file = "../../robot_models/kuka_iiwa/01-force_tracking/kuka_iiwa.urdf";
 const string robot_name = "Kuka-IIWA";
 
 unsigned long long controller_counter = 0;
@@ -42,6 +42,7 @@ const std::string POS_TASK_JOINT_TORQUES_KEY = "sai2::iiwaForceControl::iiwaBot:
 // const std::string POS_TASK_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::controller::pos_task::task_force";
 // const std::string POS_TASK_PFORCE_KEY = "sai2::iiwaForceControl::iiwaBot::controller::pos_task::force_related_force";
 // const std::string POS_TASK_FFORCE_KEY = "sai2::iiwaForceControl::iiwaBot::controller::pos_task::position_related_force";
+const std::string FORCE_SENSOR_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::force_sensor::force";
 
  void sighandler(int sig)
  { runloop = false; }
@@ -87,8 +88,8 @@ int main() {
 	// Orientation task
 	OrientationTask ori_task = OrientationTask(dof);
 	ori_task.link_name = "link6";
-	ori_task.kp = 100.0;
-	ori_task.kv = 20.0;
+	ori_task.setKp(500.0);
+	ori_task.setKv(70.0);
 
 	Eigen::VectorXd ori_task_torques(dof);
 	Eigen::Matrix3d initial_orientation;
@@ -100,8 +101,8 @@ int main() {
 	HybridPositionTask pos_task = HybridPositionTask(dof);
 	pos_task.link_name = "link6";
 	pos_task.pos_in_link = Eigen::Vector3d(0.0, 0.0, 0.0);
-	pos_task.kp = 100.0;
-	pos_task.kv = 20.0;
+	pos_task.setKp(100.0);
+	pos_task.setKv(20.0);
 
 	Eigen::VectorXd pos_task_torques(dof);
 	Eigen::Vector3d initial_position;
@@ -121,6 +122,8 @@ int main() {
 	fgc_command_enabled = "1";
 	redis_client.setCommandIs(FGC_ENABLE_KEY,fgc_command_enabled);
 
+	Eigen::Vector3d sensed_force = Eigen::Vector3d::Zero();
+
 	// while window is open:
 	while (runloop) {
 
@@ -130,6 +133,7 @@ int main() {
 		// read from Redis
 		redis_client.getEigenMatrixDerivedString(JOINT_ANGLES_KEY, robot->_q);
 		redis_client.getEigenMatrixDerivedString(JOINT_VELOCITIES_KEY, robot->_dq);
+		redis_client.getCommandIs(FORCE_SENSOR_FORCE_KEY, sensed_force(2));
 
 		// update the model 20 times slower
 		if(controller_counter%20 == 0)
@@ -166,34 +170,51 @@ int main() {
 		ori_task.current_angular_velocity = ori_task.projected_jacobian*robot->_dq;
 		// update desired orientation
 		Eigen::Matrix3d ori_update;
-		if (controller_counter >= 3000)
-		{
-			double fr = 0.015*M_PI/180;
-			ori_update << 1, 0, 0,
-					  0, cos(fr), -sin(fr),
-					  0, sin(fr), cos(fr);
-			// ori_task.desired_orientation = ori_update * ori_task.desired_orientation;
-		}
+		// if (controller_counter >= 3000)
+		// {
+		// 	double fr = 0.015*M_PI/180;
+		// 	ori_update << 1, 0, 0,
+		// 			  0, cos(fr), -sin(fr),
+		// 			  0, sin(fr), cos(fr);
+		// 	// ori_task.desired_orientation = ori_update * ori_task.desired_orientation;
+		// }
 		redis_client.setEigenMatrixDerivedString(ORI_TASK_R_KEY, ori_task.current_orientation);
 		redis_client.setEigenMatrixDerivedString(ORI_TASK_R_DESIRED_KEY, ori_task.desired_orientation);
 		// compute torques
 		ori_task.computeTorques(ori_task_torques);
 		redis_client.setEigenMatrixDerivedString(ORI_TASK_JOINT_TORQUES_KEY, ori_task_torques);
 
+		// sensed_force = ori_task.current_orientation*sensed_force;
+
 		//---- position controller 
 		// find current position
 		robot->position(pos_task.current_position, pos_task.link_name, pos_task.pos_in_link);
 		pos_task.current_velocity = pos_task.projected_jacobian * robot->_dq;
 		// update desired position
-		double freq = 0.25;
-		double amplitude = 0.1;
-		pos_task.desired_position = initial_position + amplitude/2*Eigen::Vector3d(cos(2*M_PI*freq*time)-1,sin(2*M_PI*freq*time),0);
+		// double freq = 0.25;
+		// double amplitude = 0.1;
+		// pos_task.desired_position = initial_position + amplitude/2*Eigen::Vector3d(cos(2*M_PI*freq*time)-1,sin(2*M_PI*freq*time),0);
 		// pos_task.desired_position = initial_position;
-		pos_task.desired_force = Eigen::Vector3d(0.0,0.0,-0.1);
-
-		if (controller_counter == 3000)
+		if(controller_counter < 3000)
+		// if(sensed_force(2) > -5)
 		{
+			pos_task.desired_position(2) -= 0.00016;
+		}
+		if(controller_counter % 1000 == 0)
+		{
+			std::cout << sensed_force.transpose() << std::endl;
+		}
+
+		if (controller_counter == 4000)
+		// if (sensed_force(2) < -50)
+		{
+			pos_task.desired_force = Eigen::Vector3d(0.0,0.0,-5);
 			pos_task.setForceAxis(Eigen::Vector3d(0,0,1));
+		}
+
+		if(controller_counter >= 6000)
+		{
+			pos_task.desired_force(2) = -5 - 1.0*(sensed_force(2)+5);
 		}
 
 		// compute joint torques
@@ -215,6 +236,13 @@ int main() {
     redis_client.setEigenMatrixDerivedString(JOINT_TORQUES_COMMANDED_KEY, command_torques);
     fgc_command_enabled = "0";
     redis_client.setCommandIs(FGC_ENABLE_KEY,fgc_command_enabled);
+
+    double end_time = timer.elapsedTime();
+    std::cout << "\n";
+    std::cout << "Loop run time  : " << end_time << " seconds\n";
+    std::cout << "Loop updates   : " << timer.elapsedCycles() << "\n";
+    std::cout << "Loop frequency : " << timer.elapsedCycles()/end_time << "Hz\n";
+
 
     return 0;
 }

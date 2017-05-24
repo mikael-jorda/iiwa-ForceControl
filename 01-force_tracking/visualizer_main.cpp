@@ -14,8 +14,8 @@
 
 using namespace std;
 
-const string world_file = "resources/01-force_tracking/world.urdf";
-const string robot_file = "../robot_models/kuka_iiwa/kuka_iiwa.urdf";
+const string world_file = "../resources/01-force_tracking/world.urdf";
+const string robot_file = "../../robot_models/kuka_iiwa/01-force_tracking/kuka_iiwa_force_sensor.urdf";
 const string robot_name = "Kuka-IIWA";
 const string camera_name = "camera_fixed";
 
@@ -23,6 +23,7 @@ const string camera_name = "camera_fixed";
 // - read:
 const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
 const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
+const std::string FORCE_SENSOR_POSITION_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::force_sensor::position";
 
 // callback to print glfw errors
 void glfwError(int error, const char* description);
@@ -93,12 +94,18 @@ int main() {
 	// cache variables
 	double last_cursorx, last_cursory;
 
+	Eigen::VectorXd robot_positions(7);
+	Eigen::VectorXd robot_velocities(7);
+	double sensor_position = 0.0;
     // while window is open:
     while (!glfwWindowShouldClose(window))
 	{
 		// read from Redis
-		redis_client.getEigenMatrixDerivedString(JOINT_ANGLES_KEY, robot->_q);
-		redis_client.getEigenMatrixDerivedString(JOINT_VELOCITIES_KEY, robot->_dq);
+		redis_client.getEigenMatrixDerivedString(JOINT_ANGLES_KEY, robot_positions);
+		redis_client.getCommandIs(FORCE_SENSOR_POSITION_KEY, sensor_position);
+		redis_client.getEigenMatrixDerivedString(JOINT_VELOCITIES_KEY, robot_velocities);
+		robot->_q << robot_positions, sensor_position;
+		robot->_dq << robot_velocities, 0;
 
 		// update transformations
 		robot->updateModel();

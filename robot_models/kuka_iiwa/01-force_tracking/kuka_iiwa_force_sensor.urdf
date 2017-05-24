@@ -10,13 +10,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/base.obj" scale="1 1 1" />
+                <mesh filename="../meshes/base.obj" scale="1 1 1" />
             </geometry>
         </visual>
         <!-- <collision>
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/base.obj" scale="1 1 1" />
+                <mesh filename="../meshes/base.obj" scale="1 1 1" />
             </geometry>
         </collision> -->
     </link>
@@ -29,13 +29,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link0.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link0.obj" scale="1 1 1" />
             </geometry>
         </visual>
         <!-- <collision>
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link0.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link0.obj" scale="1 1 1" />
             </geometry>
         </collision> -->
     </link>
@@ -48,13 +48,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link1.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link1.obj" scale="1 1 1" />
             </geometry>
         </visual>
         <!-- <collision>
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link1.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link1.obj" scale="1 1 1" />
             </geometry>
         </collision> -->
     </link>
@@ -67,13 +67,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link2.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link2.obj" scale="1 1 1" />
             </geometry>
         </visual>
         <!-- <collision>
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link2.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link2.obj" scale="1 1 1" />
             </geometry>
         </collision> -->
     </link>
@@ -86,13 +86,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 3.1415926535897" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link3.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link3.obj" scale="1 1 1" />
             </geometry>
         </visual>
         <!-- <collision>
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link3.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link3.obj" scale="1 1 1" />
             </geometry>
         </collision> -->
     </link>
@@ -105,13 +105,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link4.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link4.obj" scale="1 1 1" />
             </geometry>
         </visual>
         <!-- <collision>
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link4.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link4.obj" scale="1 1 1" />
             </geometry>
         </collision> -->
     </link>
@@ -124,13 +124,13 @@
         <visual>
             <origin xyz="0 -0.06 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link5.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link5.obj" scale="1 1 1" />
             </geometry>
         </visual>
         <!-- <collision>
             <origin xyz="0 -0.06 0" rpy="0 -0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link5.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link5.obj" scale="1 1 1" />
             </geometry>
         </collision> -->
     </link>
@@ -143,15 +143,34 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link6.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link6.obj" scale="1 1 1" />
             </geometry>
         </visual>
-<!--         <collision>
-            <origin xyz="0 0 0" rpy="0 -0 0" />
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="kuka_iiwa_graphics/link6.obj" scale="1 1 1" />
+                <mesh filename="../meshes/link6.obj" scale="1 1 1" />
             </geometry>
-        </collision> -->
+        </collision>
+    </link>
+    <link name="end_effector">
+    <inertial>
+        <origin xyz="0 0 0.05" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.1" iyy="0.1" izz="0.1" ixy="0" ixz="0" iyz="0" />
+    </inertial>
+    <visual>
+        <origin xyz="0 0 0" rpy="0 -0 0" />
+        <geometry>
+            <sphere radius="0.035"/>
+        </geometry>
+    </visual>
+    <collision>
+        <origin xyz="0 0 0" rpy="0 -0 0" />
+        <geometry>
+            <sphere radius="0.035"/>
+        </geometry>
+    </collision>
     </link>
     <joint name="j0" type="revolute">
         <parent link="base_link" />
@@ -201,5 +220,12 @@
         <origin xyz="0.000000 0.000000 0.081000" rpy="0.000000 0.000000 0.000000" />
         <axis xyz="0 0 1" />
         <limit lower="-3.0543" upper="3.0543" effort="40" velocity="3.1416" />
+    </joint>
+    <joint name="force_sensor" type="prismatic">
+        <parent link="link6" />
+        <child link="end_effector" />
+        <origin xyz="0.000000 0.000000 0.050000" rpy="-0.000000 0.000000 -0.000000" />
+        <axis xyz="0 0 1" />
+        <limit lower="-0.001" upper="0.001" effort="400" velocity="100" />
     </joint>
 </robot>

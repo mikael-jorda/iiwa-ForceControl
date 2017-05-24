@@ -46,6 +46,18 @@ public:
 		task_joint_torques = projected_jacobian.transpose()*task_force;
 	}
 
+	// set kp for all the joints
+	void setKp(const double d)
+	{
+		kp = d*Eigen::Matrix3d::Identity();
+	}
+
+	// set kv for all the joints
+	void setKv(const double d)
+	{
+		kv = d*Eigen::Matrix3d::Identity();
+	}
+
 	Eigen::Vector3d getOrientationError()
 	{return orientation_error;}
 
