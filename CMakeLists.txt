@@ -73,4 +73,4 @@ set (IIWA_FORCECONTROL_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 
 add_subdirectory(01-force_tracking)
 add_subdirectory(02-demo_cs225a)
-# add_subdirectory(03-multi_contact_validation)
+add_subdirectory(03-multi_contact_validation)
