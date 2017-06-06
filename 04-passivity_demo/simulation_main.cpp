@@ -30,7 +30,7 @@ const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::iiwaForceControl::iiwaBot
 const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
 const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
 const std::string SIM_TIMESTAMP_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::timestamp";
-const std::string EE_FORCE_SENSOR_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::ee_force_sensor::force";
+const std::string EE_FORCE_SENSOR_FORCE_KEY = "sai2::optoforceSensor::6Dsensor::force";
 
 unsigned long long sim_counter = 0;
 
@@ -126,7 +126,7 @@ int main() {
 		robot->gravityVector(joint_gravity,world_gravity);
 		joint_gravity.tail<ee_sensor_dof>() << 0,0,0;
 
-		// compute sensor force from sensor position. This is the force that the sensor paalies to the environment
+		// compute sensor force from sensor position. This is the force that the sensor aplies to the environment
 		ee_sensor_force = -ee_sensor_stiffness*ee_sensor_position - ee_sensor_damping*ee_sensor_velocity;
 
 		// write joint kinematics to redis

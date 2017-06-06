@@ -38,7 +38,7 @@ const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::iiwaForceControl::iiwaBot
 const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
 const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
 // - debug
-const std::string EE_FORCE_SENSOR_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::ee_force_sensor::force";
+const std::string EE_FORCE_SENSOR_FORCE_KEY = "sai2::optoforceSensor::6Dsensor::force";
 
 const std::string EE_DESIRED_FORCE_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::desired_force";
 const std::string EE_SENSED_FORCE_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::sensed_force";
@@ -179,14 +179,11 @@ int main() {
 			// std::cout << "\nsensor force in world frame : \n" << (- sensor_bias + ori_task.current_orientation*ee_sensed_force).transpose() << std::endl;
 		}
 
-		// rotate forces to world frame and unbias
-		ee_sensed_force = ori_task.current_orientation * ee_sensed_force - sensor_bias;
 
 		//---- position controller 
 		// update current position and sensor force
 		robot->position(pos_task.current_position, pos_task.link_name, pos_task.pos_in_link);
 		pos_task.current_velocity = pos_task.projected_jacobian * robot->_dq;
-		pos_task.sensed_force = ee_sensed_force;
 
 		// std::cout << "desired z position : " << pos_task.desired_position(2) << std::endl;
 		// std::cout << "z position : " << pos_task.current_position(2) << std::endl;
@@ -229,7 +226,12 @@ int main() {
 
 		else if(state == GO_TO_CONTACT)
 		{
-			pos_task.desired_position += Eigen::Vector3d(0,0,-0.000010);
+			// rotate forces to world frame and unbias, and set to controller
+			ee_sensed_force = ori_task.current_orientation * ee_sensed_force - sensor_bias;
+			if(controller_counter % 100 == 0)
+			{
+				pos_task.desired_position += Eigen::Vector3d(0,0,-0.00050);
+			}
 			if(ee_sensed_force(2) < -1)
 			{
 				state = OL_FORCE_CONTROL;
@@ -241,6 +243,8 @@ int main() {
 
 		else if(state == OL_FORCE_CONTROL)
 		{
+			// rotate forces to world frame and unbias, and set to controller
+			ee_sensed_force = ori_task.current_orientation * ee_sensed_force - sensor_bias;
 			if(ol_fc_buffer == 0)
 			{
 				pos_task.setKpf(1.0);
@@ -262,6 +266,10 @@ int main() {
 
 		else if(state == CL_FORCE_CONTROL)
 		{
+			// rotate forces to world frame and unbias, and set to controller
+			ee_sensed_force = ori_task.current_orientation * ee_sensed_force - sensor_bias;
+			pos_task.sensed_force = ee_sensed_force;
+
 			if(controller_counter % 500 == 0)
 			{
 				std::cout << "Rc : " << pos_task.Rc_ << std::endl;
