@@ -122,7 +122,7 @@ int main() {
 
 	const int zero_fs_counter = 3000;
 	int zero_fs_buffer = zero_fs_counter + 2000;
-	int ol_fc_buffer = 2000;
+	int ol_fc_buffer = 4000;
 
 	state = INITIAL;
 
@@ -230,31 +230,42 @@ int main() {
 		else if(state == GO_TO_CONTACT)
 		{
 			pos_task.desired_position += Eigen::Vector3d(0,0,-0.000010);
-			if(ee_sensed_force(2) < -10)
+			if(ee_sensed_force(2) < -1)
 			{
 				state = OL_FORCE_CONTROL;
+				pos_task.setForceAxis(Eigen::Vector3d(0,0,1));
+				pos_task.desired_force = Eigen::Vector3d(0,0,-5);
 				std::cout << "Open loop force control\n" << std::endl;
 			}
 		}
 
 		else if(state == OL_FORCE_CONTROL)
 		{
-			pos_task.setForceAxis(Eigen::Vector3d(0,0,1));
-			pos_task.desired_force = Eigen::Vector3d(0,0,-5);
 			if(ol_fc_buffer == 0)
 			{
 				pos_task.setKpf(1.0);
 				pos_task.setKif(1.0);
-				pos_task.desired_force = Eigen::Vector3d(0,0,-7);
+				pos_task.desired_force = Eigen::Vector3d(0,0,-5);
 				pos_task.setClosedLoopForceControl(control_freq);
+				pos_task.enablePassivity();
 				state = CL_FORCE_CONTROL;
 				std::cout << "Closed loop force control\n" << std::endl;
 			}
 			ol_fc_buffer--;
+			// if(controller_counter % 500 == 0)
+			// {
+				// std::cout << "force related forces : " << pos_task.force_related_forces.transpose() << std::endl; 
+				// std::cout << "position related forces : " << pos_task.position_related_forces.transpose() << std::endl; 
+				// std::cout << "position task torques : " << pos_task_torques.transpose() << std::endl; 
+			// }
 		}
 
 		else if(state == CL_FORCE_CONTROL)
 		{
+			if(controller_counter % 500 == 0)
+			{
+				std::cout << "Rc : " << pos_task.Rc_ << std::endl;
+			}
 		}
 
 		// compute joint torques

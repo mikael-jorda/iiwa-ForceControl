@@ -41,6 +41,18 @@ public:
 		closed_loop_force_control = false;
 		controller_frequency = 1000;
 
+		passivity_enabled = false;
+		Rc_ = 1.0;
+	    PO_input_ = 0;
+	    PO_output_ = 0;
+	    current_power_input_ = 0;
+	    current_power_output_ = 0;
+	    release_counter_ = 333;
+	    for(int i=0; i<5; i++)
+	    {
+	    	power_input_minimum_detection_buffer[i] = 0;
+	    }
+
 		jacobian = Eigen::MatrixXd::Zero(3,dof);
 		projected_jacobian = Eigen::MatrixXd::Zero(3,dof);
 		Lambda = Eigen::MatrixXd::Zero(3,3);
@@ -60,14 +72,86 @@ public:
 	// computes the task torques. PD controller for now
 	void computeTorques(Eigen::VectorXd& task_joint_torques)
 	{
-		// open loop force (feedforward term)
-		force_related_forces = sigma_force * desired_force;
+
 		// closed loop term
 		if(closed_loop_force_control)
 		{
-			force_feedback_control_signal = -kpf * (sensed_force - desired_force) - kif * force_integrated_error - kvf * current_velocity;
-			force_related_forces += Lambda * sigma_force * force_feedback_control_signal;
 			force_integrated_error += (sensed_force - desired_force)/controller_frequency;
+			force_feedback_control_signal = -kpf * (sensed_force - desired_force) - kif * force_integrated_error;
+
+
+
+			double tmp_Rc = Rc_;
+
+			current_power_input_ = (double) (desired_force.transpose()*(sigma_force * force_feedback_control_signal));
+	//        current_power_input_ *= tmp_Rc;
+			// current_power_output_ = (double) (previous_force_related_forces_.transpose()*(sigma_force_*vel_));
+			current_power_output_ = 0.0;
+
+			if(passivity_enabled) // only resetting PO enabled
+			{
+
+			PO_input_ += current_power_input_; // add latest value
+			PO_output_ += current_power_output_; // 
+
+				for(int i=0; i<4; i++)
+				{
+					power_input_minimum_detection_buffer[i] = power_input_minimum_detection_buffer[i+1];
+				}
+				power_input_minimum_detection_buffer[4] = current_power_input_; // - power_adjustment;
+
+				if(power_input_minimum_detection_buffer[0] > power_input_minimum_detection_buffer[1] &&
+						power_input_minimum_detection_buffer[1] > power_input_minimum_detection_buffer[2] &&
+						power_input_minimum_detection_buffer[2] < power_input_minimum_detection_buffer[3] &&
+						power_input_minimum_detection_buffer[3] < power_input_minimum_detection_buffer[4] &&
+						isPassive())
+				{
+					PO_input_ = power_input_minimum_detection_buffer[3] + power_input_minimum_detection_buffer[4];
+				}
+
+
+				// very heuristic passivity controller tuned for the kuka
+				if(!isPassive() && release_counter_ < 200)
+				{
+					Rc_ /= 2;
+					release_counter_ = 333;
+				}
+				else if(release_counter_ <= 0)
+				{
+					Rc_ += 0.1;
+					release_counter_ = 333;
+				}
+				else
+				{
+					release_counter_--;
+				}
+
+				if(release_counter_ < 0)
+				{
+					release_counter_ = 0;
+				}
+
+				if(Rc_ < 0.1)
+				{
+					Rc_ = 0.1;
+				}
+				if(Rc_ > 1)
+				{
+					Rc_ = 1;
+				}
+			}
+			else
+			{
+				Rc_ = 1.0;
+			}
+
+			force_related_forces = sigma_force * desired_force + Lambda * sigma_force * Rc_ * force_feedback_control_signal - kvf * current_velocity;
+			// force_related_forces = Lambda * sigma_force * Rc_ * force_feedback_control_signal - kvf * current_velocity;
+		}
+		else
+		{
+			// open loop force (feedforward term)
+			force_related_forces = sigma_force * desired_force;
 		}
 
 		// PD controller for position part
@@ -86,7 +170,7 @@ public:
 					desired_velocity(i) = -saturated_velocity(i);
 				}
 			}
-			position_related_forces = Lambda * (-kv*(current_velocity - desired_velocity));
+			position_related_forces = Lambda * sigma_position * (-kv*(current_velocity - desired_velocity));
 		}
 		else
 		{
@@ -145,6 +229,31 @@ public:
 		}
 	}
 
+	void enablePassivity()
+	{
+		passivity_enabled = true;
+		Rc_ = 1.0;
+	    PO_input_ = 0;
+	    PO_output_ = 0;
+	    current_power_input_ = 0;
+	    current_power_output_ = 0;
+	    release_counter_ = 333;
+	    for(int i=0; i<5; i++)
+	    {
+	    	power_input_minimum_detection_buffer[i] = 0;
+	    }
+	}
+
+	bool isPassive()
+	{
+	    if(!passivity_enabled)
+	    {
+	        std::cout << "Passivity not enabled\n";
+	        return true;
+	    }
+	    return (PO_input_-PO_output_ > 0);
+	}
+
 	// set kp for all the joints
 	void setKp(const double d)
 	{
@@ -188,6 +297,15 @@ public:
 	double controller_frequency;
 	Eigen::Vector3d force_feedback_control_signal;
 
+	bool passivity_enabled = false;
+	double Rc_ = 1.0;
+    double PO_input_;
+    double PO_output_;
+    double current_power_input_;
+    double current_power_output_;
+    int release_counter_;
+    double power_input_minimum_detection_buffer[5] = {0,0,0,0,0};
+
 	Eigen::Matrix3d kp;
 	Eigen::Matrix3d kv;
 
@@ -201,7 +319,7 @@ public:
 	Eigen::MatrixXd Jbar;
 	Eigen::MatrixXd N;
 
-private:
+// private:
 	Eigen::Vector3d task_force;
 
 	Eigen::Vector3d position_related_forces;

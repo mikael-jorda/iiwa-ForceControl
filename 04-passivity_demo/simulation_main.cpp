@@ -89,8 +89,8 @@ int main() {
 	Eigen::Vector3d ee_sensor_position = Eigen::VectorXd::Zero(ee_sensor_dof);
 	Eigen::Vector3d ee_sensor_velocity = Eigen::VectorXd::Zero(ee_sensor_dof);
 
-	Eigen::MatrixXd ee_sensor_stiffness = 50000*Eigen::MatrixXd::Identity(ee_sensor_dof,ee_sensor_dof);
-	Eigen::MatrixXd ee_sensor_damping = 500*Eigen::MatrixXd::Identity(ee_sensor_dof,ee_sensor_dof);
+	Eigen::MatrixXd ee_sensor_stiffness = 100000*Eigen::MatrixXd::Identity(ee_sensor_dof,ee_sensor_dof);
+	Eigen::MatrixXd ee_sensor_damping = 650*Eigen::MatrixXd::Identity(ee_sensor_dof,ee_sensor_dof);
 
 	Eigen::VectorXd robot_positions = Eigen::VectorXd::Zero(7);
 	Eigen::VectorXd robot_velocities = Eigen::VectorXd::Zero(7);

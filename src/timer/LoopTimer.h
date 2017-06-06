@@ -7,7 +7,7 @@
 #include <iostream>
 #include <signal.h>
 
-// #define USE_CHRONO
+#define USE_CHRONO
 
 #ifdef USE_CHRONO
 #include <chrono>
