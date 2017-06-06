@@ -23,7 +23,6 @@ const string camera_name = "camera_fixed";
 // - read:
 const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
 const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
-const std::string EE_FORCE_SENSOR_POSITION_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::ee_force_sensor::position";
 
 // force sensor dof
 const int ee_sensor_dof = 3;
@@ -99,14 +98,13 @@ int main() {
 
 	Eigen::VectorXd robot_positions(7);
 	Eigen::VectorXd robot_velocities(7);
-	Eigen::VectorXd ee_sensor_position(ee_sensor_dof);
-	Eigen::VectorXd ee_sensor_velocity(ee_sensor_dof);
+	Eigen::VectorXd ee_sensor_position = Eigen::VectorXd::Zero(ee_sensor_dof);
+	Eigen::VectorXd ee_sensor_velocity = Eigen::VectorXd::Zero(ee_sensor_dof);
     // while window is open:
     while (!glfwWindowShouldClose(window))
 	{
 		// read from Redis
 		redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, robot_positions);
-		redis_client.getEigenMatrixDerived(EE_FORCE_SENSOR_POSITION_KEY, ee_sensor_position);
 		redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot_velocities);
 		robot->_q << robot_positions, ee_sensor_position;
 		robot->_dq << robot_velocities, ee_sensor_velocity;

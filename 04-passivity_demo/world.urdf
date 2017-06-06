@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 
-<world name="demo_world" gravity="0.0 0.0 0.0">
+<world name="demo_world" gravity="0.0 0.0 -9.8">
 
 	<robot name="Kuka-IIWA">
 		<!-- model node is required -->
@@ -11,12 +11,12 @@
 
 	<static_object name="Floor">
 		<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
-		<collision>
+		<!-- <collision>
 	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 	        <geometry>
 	            <box size="3.0 3.0 0.1" />
 	        </geometry>
-	    </collision>
+	    </collision> -->
 	    <visual>
 	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 	        <geometry>

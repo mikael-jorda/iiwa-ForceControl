@@ -30,7 +30,6 @@ const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::iiwaForceControl::iiwaBot
 const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
 const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
 const std::string SIM_TIMESTAMP_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::timestamp";
-const std::string EE_FORCE_SENSOR_POSITION_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::ee_force_sensor::position";
 const std::string EE_FORCE_SENSOR_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::ee_force_sensor::force";
 
 unsigned long long sim_counter = 0;
@@ -74,8 +73,8 @@ int main() {
 
 	// std::cout << world_gravity << std::endl;
 
-	// create a loop timer
-	double sim_freq = 5000;  // set the simulation frequency. Ideally 10kHz
+	// create a loop timer 
+	double sim_freq = 10000;  // set the simulation frequency. Ideally 10kHz
 	LoopTimer timer;
 	timer.setLoopFrequency(sim_freq);   // 10 KHz
 	// timer.setThreadHighPriority();  // make timing more accurate. requires running executable as sudo.
@@ -90,12 +89,13 @@ int main() {
 	Eigen::Vector3d ee_sensor_position = Eigen::VectorXd::Zero(ee_sensor_dof);
 	Eigen::Vector3d ee_sensor_velocity = Eigen::VectorXd::Zero(ee_sensor_dof);
 
-	Eigen::MatrixXd ee_sensor_stiffness = 100000*Eigen::MatrixXd::Identity(ee_sensor_dof,ee_sensor_dof);
-	Eigen::MatrixXd ee_sensor_damping = 800*Eigen::MatrixXd::Identity(ee_sensor_dof,ee_sensor_dof);
+	Eigen::MatrixXd ee_sensor_stiffness = 50000*Eigen::MatrixXd::Identity(ee_sensor_dof,ee_sensor_dof);
+	Eigen::MatrixXd ee_sensor_damping = 500*Eigen::MatrixXd::Identity(ee_sensor_dof,ee_sensor_dof);
 
 	Eigen::VectorXd robot_positions = Eigen::VectorXd::Zero(7);
 	Eigen::VectorXd robot_velocities = Eigen::VectorXd::Zero(7);
 
+	double t1, t2;
 
 	while (runloop) {
 		// wait for next scheduled loop
@@ -108,7 +108,10 @@ int main() {
 		sim->setJointTorques(robot_name, robot_plus_sensor_torques + joint_gravity);
 
 		// update simulation by 1ms
+		// t1 = timer.elapsedTime();
 		sim->integrate(1/sim_freq);
+		// t2 = timer.elapsedTime();
+		// std::cout << "sim integrate time : " << t2-t1 << std::endl;
 
 		// update kinematic models
 		sim->getJointPositions(robot_name, robot->_q);
@@ -123,24 +126,27 @@ int main() {
 		robot->gravityVector(joint_gravity,world_gravity);
 		joint_gravity.tail<ee_sensor_dof>() << 0,0,0;
 
-		// compute sensor force from relaxed sensor position
+		// compute sensor force from sensor position. This is the force that the sensor paalies to the environment
 		ee_sensor_force = -ee_sensor_stiffness*ee_sensor_position - ee_sensor_damping*ee_sensor_velocity;
 
 		// write joint kinematics to redis
+		// t1 = timer.elapsedTime();
 		redis_client.setEigenMatrixDerived(JOINT_ANGLES_KEY, robot_positions);
 		redis_client.setEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot_velocities);
 		redis_client.setEigenMatrixDerived(EE_FORCE_SENSOR_FORCE_KEY, ee_sensor_force);
-		redis_client.setEigenMatrixDerived(EE_FORCE_SENSOR_POSITION_KEY, ee_sensor_position);
 
 		redis_client.setCommandIs(SIM_TIMESTAMP_KEY,std::to_string(timer.elapsedTime()));
+		// t2 = timer.elapsedTime();
+		// std::cout << "write to redis time : " << t2-t1 << "\n\n" << std::endl;
 
 		sim_counter++;
 
-		// if(sim_counter % 500 == 0)
-		// {
-		// 	std::cout << "end effector sensor forces : \t" << ee_sensor_force.transpose() << std::endl;
-		// 	std::cout << std::endl;
-		// }
+		if(sim_counter % 500 == 0)
+		{
+			// std::cout << "force sensor position : \t" << ee_sensor_position.transpose() << std::endl;
+			// std::cout << "end effector sensor forces : \t" << ee_sensor_force.transpose() << std::endl;
+			// std::cout << std::endl;
+		}
 
 	}
 

@@ -1,8 +1,8 @@
 # create an executable
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IIWA_FORCECONTROL_BINARY_DIR}/04-passivity_demo)
-ADD_EXECUTABLE (controller4 controller_main.cpp)
-ADD_EXECUTABLE (simulation4 simulation_main.cpp)
-ADD_EXECUTABLE (visualizer4 visualizer_main.cpp)
+ADD_EXECUTABLE (controller4 controller_main.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
+ADD_EXECUTABLE (simulation4 simulation_main.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
+ADD_EXECUTABLE (visualizer4 visualizer_main.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
 
 # and link the library against the executable
 TARGET_LINK_LIBRARIES (controller4 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})

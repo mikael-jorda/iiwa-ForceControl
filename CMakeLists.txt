@@ -4,10 +4,10 @@ SET(CMAKE_CXX_FLAGS "-std=c++11")
 
 # set common source
 set (IIWA_FORCECONTROL_COMMON_SOURCE
-	${PROJECT_SOURCE_DIR}/src/redis/RedisClient.h
-	${PROJECT_SOURCE_DIR}/src/timer/LoopTimer.h
-	${PROJECT_SOURCE_DIR}/src/tasks/OrientationTask.h
-	${PROJECT_SOURCE_DIR}/src/tasks/HybridPositionTask.h
+	# ${PROJECT_SOURCE_DIR}/src/redis/RedisClient.h
+	${PROJECT_SOURCE_DIR}/src/timer/LoopTimer.cpp
+	# ${PROJECT_SOURCE_DIR}/src/tasks/OrientationTask.h
+	# ${PROJECT_SOURCE_DIR}/src/tasks/HybridPositionTask.h
 	)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
@@ -71,6 +71,7 @@ set(IIWA_FORCECONTROL_COMMON_LIBRARIES
 # set (CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${PROJECT_SOURCE_DIR}/bin)
 set (IIWA_FORCECONTROL_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 
-add_subdirectory(01-force_tracking)
-add_subdirectory(02-demo_cs225a)
-add_subdirectory(03-multi_contact_validation)
+# add_subdirectory(01-force_tracking)
+# add_subdirectory(02-demo_cs225a)
+# add_subdirectory(03-multi_contact_validation)
+add_subdirectory(04-passivity_demo)
