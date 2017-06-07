@@ -18,8 +18,10 @@ force = file[:,1:4]
 desired_force = file[:,4:7]
 
 plt.figure(1)
-plt.plot(time, force[:,2],'r',label="Force")
-plt.plot(time, desired_force[:,2],'k', label="Desired Force")
+# plt.plot(time, force[:,2],'r',label="Force")
+plt.plot(force[:,2],'r',label="Force")
+# plt.plot(time, desired_force[:,2],'k', label="Desired Force")
+plt.plot(desired_force[:,2],'k', label="Desired Force")
 plt.legend()
 
 plt.show()

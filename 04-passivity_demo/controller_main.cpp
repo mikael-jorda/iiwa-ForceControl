@@ -33,15 +33,23 @@ std::string fgc_command_enabled = "";
 
 // redis keys:
 // - write:
-const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::iiwaForceControl::iiwaBot::actuators::fgc";
+// const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::iiwaForceControl::iiwaBot::actuators::fgc";
 // - read:
-const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
-const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
+// const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
+// const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
 // - debug
 const std::string EE_FORCE_SENSOR_FORCE_KEY = "sai2::optoforceSensor::6Dsensor::force";
 
 const std::string EE_DESIRED_FORCE_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::desired_force";
 const std::string EE_SENSED_FORCE_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::sensed_force";
+
+
+  // - read:
+  const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::KUKA_IIWA::actuators::fgc";
+  // - write:
+  const std::string JOINT_ANGLES_KEY  = "sai2::KUKA_IIWA::sensors::q";
+  const std::string JOINT_VELOCITIES_KEY = "sai2::KUKA_IIWA::sensors::dq";
+  const std::string JOINT_TORQUES_SENSED_KEY = "sai2::KUKA_IIWA::sensors::torques";
 
  void sighandler(int sig)
  { runloop = false; }
@@ -63,7 +71,7 @@ int main() {
 	signal(SIGINT, &sighandler);
 
 	// load robots
-	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
+	auto robot = new Model::ModelInterface(robot_file, Model::rbdl_kuka, Model::urdf, false);
 
 	// read from Redis
 	redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
@@ -86,8 +94,8 @@ int main() {
 	// Orientation task
 	OrientationTask ori_task = OrientationTask(dof);
 	ori_task.link_name = "link6";
-	ori_task.setKp(100.0);
-	ori_task.setKv(20.0);
+	ori_task.setKp(600.0);
+	ori_task.setKv(50.0);
 
 	Eigen::VectorXd ori_task_torques(dof);
 	Eigen::Matrix3d initial_orientation;
@@ -99,9 +107,9 @@ int main() {
 	HybridPositionTask pos_task = HybridPositionTask(dof);
 	pos_task.link_name = "link5";
 	pos_task.pos_in_link = Eigen::Vector3d(0.0, 0.0, 0.0);
-	pos_task.setKp(200.0);
-	pos_task.setKv(28.0);
-	pos_task.useVelocitySaturation(true, Eigen::Vector3d(0.5, 0.5, 0.5));
+	pos_task.setKp(150.0);
+	pos_task.setKv(15.0);
+	pos_task.useVelocitySaturation(true, Eigen::Vector3d(0.2, 0.2, 0.2));
 
 	Eigen::VectorXd pos_task_torques(dof);
 	Eigen::Vector3d initial_position;
@@ -172,12 +180,7 @@ int main() {
 		ori_task.computeTorques(ori_task_torques);
 
 
-		if(controller_counter % 100 == 0)
-		{
-			// std::cout << "end effector orientation : \n" << ori_task.current_orientation << std::endl;
-			// std::cout << "sensor force in sensor frame : \n" << ee_sensed_force.transpose() << std::endl;
-			// std::cout << "\nsensor force in world frame : \n" << (- sensor_bias + ori_task.current_orientation*ee_sensed_force).transpose() << std::endl;
-		}
+
 
 
 		//---- position controller 
@@ -190,7 +193,7 @@ int main() {
 
 		if(state == INITIAL)
 		{
-			pos_task.desired_position += Eigen::Vector3d(0, 0, -0.28);
+			pos_task.desired_position += Eigen::Vector3d(0, 0, -0.25);
 			state = MOVE_ABOVE_CONTACT;
 			std::cout << "Move above contact\n" << std::endl;
 		}
@@ -227,16 +230,16 @@ int main() {
 		else if(state == GO_TO_CONTACT)
 		{
 			// rotate forces to world frame and unbias, and set to controller
-			ee_sensed_force = ori_task.current_orientation * ee_sensed_force - sensor_bias;
-			if(controller_counter % 100 == 0)
+			ee_sensed_force = ori_task.current_orientation * (ee_sensed_force - sensor_bias);
+			if(controller_counter % 25 == 0)
 			{
 				pos_task.desired_position += Eigen::Vector3d(0,0,-0.00050);
 			}
-			if(ee_sensed_force(2) < -1)
+			if(ee_sensed_force(2) < -5)
 			{
 				state = OL_FORCE_CONTROL;
 				pos_task.setForceAxis(Eigen::Vector3d(0,0,1));
-				pos_task.desired_force = Eigen::Vector3d(0,0,-5);
+				pos_task.desired_force = Eigen::Vector3d(0,0,-7);
 				std::cout << "Open loop force control\n" << std::endl;
 			}
 		}
@@ -244,14 +247,14 @@ int main() {
 		else if(state == OL_FORCE_CONTROL)
 		{
 			// rotate forces to world frame and unbias, and set to controller
-			ee_sensed_force = ori_task.current_orientation * ee_sensed_force - sensor_bias;
+			ee_sensed_force = ori_task.current_orientation * (ee_sensed_force - sensor_bias);
 			if(ol_fc_buffer == 0)
 			{
-				pos_task.setKpf(1.0);
-				pos_task.setKif(1.0);
+				pos_task.setKpf(1.5);
+				pos_task.setKif(1.3);
 				pos_task.desired_force = Eigen::Vector3d(0,0,-5);
 				pos_task.setClosedLoopForceControl(control_freq);
-				pos_task.enablePassivity();
+				// pos_task.enablePassivity();
 				state = CL_FORCE_CONTROL;
 				std::cout << "Closed loop force control\n" << std::endl;
 			}
@@ -267,13 +270,20 @@ int main() {
 		else if(state == CL_FORCE_CONTROL)
 		{
 			// rotate forces to world frame and unbias, and set to controller
-			ee_sensed_force = ori_task.current_orientation * ee_sensed_force - sensor_bias;
+			ee_sensed_force = ori_task.current_orientation * (ee_sensed_force - sensor_bias);
 			pos_task.sensed_force = ee_sensed_force;
 
 			if(controller_counter % 500 == 0)
 			{
 				std::cout << "Rc : " << pos_task.Rc_ << std::endl;
 			}
+		}
+
+		if(controller_counter % 1000 == 0)
+		{
+			// std::cout << "end effector orientation : \n" << ori_task.current_orientation << std::endl;
+			// std::cout << "sensor force in sensor frame : \n" << ee_sensed_force.transpose() << std::endl;
+			std::cout << "\nsensor force in world frame : \n" << ee_sensed_force.transpose() << std::endl;
 		}
 
 		// compute joint torques

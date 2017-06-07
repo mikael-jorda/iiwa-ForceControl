@@ -60,7 +60,7 @@ int main() {
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 
 	// load robots
-	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
+	auto robot = new Model::ModelInterface(robot_file, Model::rbdl_kuka, Model::urdf, false);
 
 	/*------- Set up visualization -------*/
     // set up error callback

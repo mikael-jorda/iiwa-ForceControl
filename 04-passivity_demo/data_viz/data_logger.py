@@ -17,7 +17,7 @@ def signal_handler(signal, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 # data files
-folder = 'debug_simulation'
+folder = 'debug_robot'
 if not os.path.exists(folder):
     os.makedirs(folder)
 
@@ -26,13 +26,13 @@ header = time.strftime("%x").replace('/','-') + '_' + time.strftime("%X").replac
 
 file_sensed_force = open(folder + '/' + header + '_force.txt','w')
 
-file_sensed_force.write('Timestamp \t Sensed force\n')
+file_sensed_force.write('Sensed force\n')
 
 # open redis server
 r_server = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 # redis keys used in SAI2
-SIM_TIMESTAMP_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::timestamp";
+# SIM_TIMESTAMP_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::timestamp";
 EE_DESIRED_FORCE_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::desired_force";
 # EE_FORCE_SENSOR_FORCE_KEY = "sai2::optoforceSensor::6Dsensor::force";
 EE_SENSED_FORCE_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::sensed_force";
@@ -51,7 +51,8 @@ while(runloop):
 	force = json.loads(r_server.get(EE_SENSED_FORCE_LOGGED_KEY))
 	desired_force = json.loads(r_server.get(EE_DESIRED_FORCE_LOGGED_KEY))
 
-	line = r_server.get(SIM_TIMESTAMP_KEY) + '\t' + " ".join([str(x) for x in force]) + '\t' + " ".join([str(x) for x in desired_force]) + '\n'
+	# line = r_server.get(SIM_TIMESTAMP_KEY) + '\t' + " ".join([str(x) for x in force]) + '\t' + " ".join([str(x) for x in desired_force]) + '\n'
+	line = '0\t' + " ".join([str(x) for x in force]) + '\t' + " ".join([str(x) for x in desired_force]) + '\n'
 	# print line
 	file_sensed_force.write(line)
 

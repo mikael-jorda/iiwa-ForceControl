@@ -145,7 +145,7 @@ public:
 				Rc_ = 1.0;
 			}
 
-			force_related_forces = sigma_force * desired_force + Lambda * sigma_force * Rc_ * force_feedback_control_signal - kvf * current_velocity;
+			force_related_forces = sigma_force * desired_force + sigma_force * Rc_ * force_feedback_control_signal - kvf * current_velocity;
 			// force_related_forces = Lambda * sigma_force * Rc_ * force_feedback_control_signal - kvf * current_velocity;
 		}
 		else
@@ -251,7 +251,7 @@ public:
 	        std::cout << "Passivity not enabled\n";
 	        return true;
 	    }
-	    return (PO_input_-PO_output_ > 0);
+	    return (PO_input_-PO_output_ > 1);
 	}
 
 	// set kp for all the joints
