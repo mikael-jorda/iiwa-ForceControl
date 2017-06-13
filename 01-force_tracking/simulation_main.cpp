@@ -119,52 +119,52 @@ int main() {
 		sensor_position = robot->_q(7);
 		sensor_velocity = robot->_dq(7);
 
-		// // relax the force sensor
-		// sim->getContactList(contact_points, contact_forces, robot_name, "end_effector");
-		// if(!contact_points.empty())
-		// {
-		// 	std::cout << "subcycling" << std::endl; 
-		// 	int n = contact_points.size();
+		// relax the force sensor
+		sim->getContactList(contact_points, contact_forces, robot_name, "end_effector");
+		if(!contact_points.empty())
+		{
+			std::cout << "subcycling" << std::endl; 
+			int n = contact_points.size();
 
-		// 	// set the local parameters
-		// 	double m = ee_mass;
-		// 	double k = sensor_stiffness;
-		// 	double b = sensor_damping;
-		// 	double dt = subcycle_dt;
+			// set the local parameters
+			double m = ee_mass;
+			double k = sensor_stiffness;
+			double b = sensor_damping;
+			double dt = subcycle_dt;
 
-		// 	double F = 0;
-		// 	for(int k=0; k<n; k++)
-		// 	{
-		// 		F += contact_forces[k](2);
-		// 	}
+			double F = 0;
+			for(int k=0; k<n; k++)
+			{
+				F += contact_forces[k](2);
+			}
 
-		// 	x0 = sensor_position;
-		// 	x1 = sensor_position + sensor_velocity*subcycle_dt;
+			x0 = sensor_position;
+			x1 = sensor_position + sensor_velocity*subcycle_dt;
 
-		// 	std::cout << "initial position and velocity : " << sensor_position << " " << sensor_velocity << std::endl;
-		// 	std::cout << "initial sensor force : " << -sensor_stiffness*sensor_position - sensor_damping*sensor_velocity << std::endl;
+			std::cout << "initial position and velocity : " << sensor_position << " " << sensor_velocity << std::endl;
+			std::cout << "initial sensor force : " << -sensor_stiffness*sensor_position - sensor_damping*sensor_velocity << std::endl;
 
-		// 	for(int i=0; i<subcycling_steps; i++)
-		// 	{
-		// 		x2 = (F*dt*dt + x0*(b*dt-m-k*dt*dt) + x1*(2*m-b*dt))/m;
+			for(int i=0; i<subcycling_steps; i++)
+			{
+				x2 = (F*dt*dt + x0*(b*dt-m-k*dt*dt) + x1*(2*m-b*dt))/m;
 
-		// 		x0 = x1;
-		// 		x1 = x2;
-		// 	}
+				x0 = x1;
+				x1 = x2;
+			}
 
-		// 	sensor_position = x2;
-		// 	sensor_velocity = (x2-x1)/dt;
+			sensor_position = x2;
+			sensor_velocity = (x2-x1)/dt;
 
-		// 	std::cout << "final position and velocity : " << sensor_position << " " << sensor_velocity << std::endl;
-		// 	std::cout << "final sensor force : " << -sensor_stiffness*sensor_position - sensor_damping*sensor_velocity << "\n" << std::endl;
+			std::cout << "final position and velocity : " << sensor_position << " " << sensor_velocity << std::endl;
+			std::cout << "final sensor force : " << -sensor_stiffness*sensor_position - sensor_damping*sensor_velocity << "\n" << std::endl;
 
-		// }
+		}
 		
-		// robot->_q(7) = sensor_position;
-		// robot->_dq(7) = sensor_velocity;
+		robot->_q(7) = sensor_position;
+		robot->_dq(7) = sensor_velocity;
 
-		// sim->setJointPosition(robot_name, 7, sensor_position);
-		// sim->setJointVelocity(robot_name, 7, sensor_velocity);
+		sim->setJointPosition(robot_name, 7, sensor_position);
+		sim->setJointVelocity(robot_name, 7, sensor_velocity);
 
 		robot->updateModel();
 
