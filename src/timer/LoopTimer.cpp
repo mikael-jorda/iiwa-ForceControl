@@ -111,7 +111,8 @@ double LoopTimer::loopTime() {
 
 double LoopTimer::elapsedTime() {
 #ifdef USE_CHRONO
-	return std::chrono::duration<double>(t_loop_).count();
+	std::chrono::high_resolution_clock::duration dt = std::chrono::high_resolution_clock::now() - t_start_;
+	return std::chrono::duration<double>(dt).count();
 #else  // USE_CHRONO
 	struct timespec t;
 	elapsedTime(t);

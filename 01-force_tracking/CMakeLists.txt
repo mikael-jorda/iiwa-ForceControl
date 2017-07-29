@@ -1,8 +1,8 @@
 # create an executable
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IIWA_FORCECONTROL_BINARY_DIR}/01-force_tracking)
-ADD_EXECUTABLE (controller1 controller_main.cpp)
-ADD_EXECUTABLE (simulation1 simulation_main.cpp)
-ADD_EXECUTABLE (visualizer1 visualizer_main.cpp)
+ADD_EXECUTABLE (controller1 controller_main.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
+ADD_EXECUTABLE (simulation1 simulation_main.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
+ADD_EXECUTABLE (visualizer1 visualizer_main.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
 
 # and link the library against the executable
 TARGET_LINK_LIBRARIES (controller1 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})

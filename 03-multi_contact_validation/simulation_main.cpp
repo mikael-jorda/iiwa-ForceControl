@@ -8,6 +8,7 @@
 #include "redis/RedisClient.h"
 #include "timer/LoopTimer.h"
 #include <dynamics3d.h>
+#include "force_sensor/ForceSensorSim.h"
 
 #include <iostream>
 #include <string>
@@ -30,17 +31,13 @@ const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::iiwaForceControl::iiwaBot
 const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
 const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
 const std::string SIM_TIMESTAMP_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::timestamp";
-const std::string BASE_FORCE_SENSOR_POSITION_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::base_force_sensor::position";
+const std::string VIRTUAL_BASE_POSITION_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::virtual_base::position";
 const std::string BASE_FORCE_SENSOR_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::base_force_sensor::force";
-const std::string EE_FORCE_SENSOR_POSITION_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::ee_force_sensor::position";
 const std::string EE_FORCE_SENSOR_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::ee_force_sensor::force";
 
 unsigned long long sim_counter = 0;
 
-// force sensor dof
-const int base_sensor_dof = 3;
-const int ee_sensor_dof = 3;
-
+const int virtual_base_dof = 6;
 
 int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
@@ -64,11 +61,19 @@ int main() {
 	// load robots
 	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
 
+	// create simulated force sensors
+	auto base_sensor = new ForceSensorSim(robot_name, "base_link", Eigen::Affine3d::Identity(), robot);
+	auto ee_sensor = new ForceSensorSim(robot_name, "link6", Eigen::Affine3d::Identity(), robot);
+
 	// set initial position to match kuka driver
-	sim->setJointPosition(robot_name, 0+base_sensor_dof, 90.0/180.0*M_PI);
-	sim->setJointPosition(robot_name, 1+base_sensor_dof, -30.0/180.0*M_PI);
-	sim->setJointPosition(robot_name, 3+base_sensor_dof, 60.0/180.0*M_PI);
-	sim->setJointPosition(robot_name, 5+base_sensor_dof, -90.0/180.0*M_PI);
+	sim->setJointPosition(robot_name, 0+virtual_base_dof, 90.0/180.0*M_PI);
+	sim->setJointPosition(robot_name, 1+virtual_base_dof, 5/180.0*M_PI);
+	sim->setJointPosition(robot_name, 3+virtual_base_dof, 15/180.0*M_PI);
+	sim->setJointPosition(robot_name, 5+virtual_base_dof, 15/180.0*M_PI);
+	// for(int i=0; i < 7+virtual_base_dof; i++)
+	// {
+	// 	sim->setJointPosition(robot_name, i, 0);
+	// }
 
 	sim->setCollisionRestitution(0);
 
@@ -77,10 +82,10 @@ int main() {
 	// auto world_gravity_tmp = sim->_world->m_dynWorld->gravity;
 	// Eigen::Vector3d world_gravity = Eigen::Vector3d(world_gravity_tmp[0],world_gravity_tmp[1],world_gravity_tmp[2]);
 
-	std::cout << "gravity : " << world_gravity.transpose() << std::endl;
+	// std::cout << "gravity : " << world_gravity.transpose() << std::endl;
 
 	// create a loop timer
-	double sim_freq = 5000;  // set the simulation frequency. Ideally 10kHz
+	double sim_freq = 10000.0;  // set the simulation frequency. Ideally 10kHz
 	LoopTimer timer;
 	timer.setLoopFrequency(sim_freq);   // 10 KHz
 	// timer.setThreadHighPriority();  // make timing more accurate. requires running executable as sudo.
@@ -88,24 +93,30 @@ int main() {
 	timer.initializeTimer(1000000); // 1 ms pause before starting loop
 
 	Eigen::VectorXd robot_torques(7);
-	Eigen::VectorXd robot_plus_sensor_torques(base_sensor_dof + 7 + ee_sensor_dof);
-	Eigen::VectorXd joint_gravity(base_sensor_dof + 7 + ee_sensor_dof);
+	robot_torques.setZero();
+	Eigen::VectorXd robot_plus_base_torques(virtual_base_dof + 7);
+	Eigen::VectorXd joint_gravity(virtual_base_dof + 7);
 
-	Eigen::VectorXd base_sensor_force(base_sensor_dof);
-	Eigen::Vector3d base_sensor_position(base_sensor_dof);
-	Eigen::Vector3d base_sensor_velocity(base_sensor_dof);
-	Eigen::VectorXd ee_sensor_force(ee_sensor_dof);
-	Eigen::Vector3d ee_sensor_position(ee_sensor_dof);
-	Eigen::Vector3d ee_sensor_velocity(ee_sensor_dof);
+	Eigen::VectorXd virtual_base_torques = Eigen::VectorXd::Zero(virtual_base_dof);
+	Eigen::VectorXd virtual_base_position = Eigen::VectorXd::Zero(virtual_base_dof);
 
-	Eigen::MatrixXd base_sensor_stiffness = 100000*Eigen::MatrixXd::Identity(base_sensor_dof,base_sensor_dof);
-	Eigen::MatrixXd base_sensor_damping = 800*Eigen::MatrixXd::Identity(base_sensor_dof,base_sensor_dof);
-	Eigen::MatrixXd ee_sensor_stiffness = 100000*Eigen::MatrixXd::Identity(ee_sensor_dof,ee_sensor_dof);
-	Eigen::MatrixXd ee_sensor_damping = 800*Eigen::MatrixXd::Identity(ee_sensor_dof,ee_sensor_dof);
+	Eigen::VectorXd base_force_and_moment(6);
+	Eigen::Vector3d base_force;
+	Eigen::Vector3d base_moment;
+	Eigen::VectorXd ee_force_and_moment(6);
+	Eigen::Vector3d ee_force;
+	Eigen::Vector3d ee_moment;
+	// base_force_and_moment.setZero();
+	// base_moment.setZero();
+	// ee_force_and_moment.setZero();
+	// ee_moment.setZero();
 
 	Eigen::VectorXd robot_positions(7);
 	Eigen::VectorXd robot_velocities(7);
 
+	robot->updateModel();
+	robot->gravityVector(joint_gravity,world_gravity);
+	joint_gravity.head<virtual_base_dof>() = Eigen::VectorXd::Zero(virtual_base_dof);
 
 	while (runloop) {
 		// wait for next scheduled loop
@@ -114,40 +125,44 @@ int main() {
 		// read torques from Redis
 		redis_client.getEigenMatrixDerived(JOINT_TORQUES_COMMANDED_KEY, robot_torques);
 
-		robot_plus_sensor_torques << base_sensor_force, robot_torques, ee_sensor_force;
-		sim->setJointTorques(robot_name, robot_plus_sensor_torques + joint_gravity);
+		robot_plus_base_torques << virtual_base_torques, robot_torques;
+		sim->setJointTorques(robot_name, robot_plus_base_torques + joint_gravity);
+		// sim->setJointTorques(robot_name, Eigen::VectorXd::Zero(virtual_base_dof + 7));
 
 		// update simulation by 1ms
-		sim->integrate(1/sim_freq);
+		// sim->integrate(1.0/sim_freq);
+		// sim->integrate(0.001/sim_freq*1000.0);
+		sim->integrate(0.001);
 
 		// update kinematic models
 		sim->getJointPositions(robot_name, robot->_q);
 		sim->getJointVelocities(robot_name, robot->_dq);
-		robot_positions = robot->_q.segment<7>(base_sensor_dof);
-		robot_velocities = robot->_dq.segment<7>(base_sensor_dof);
+		robot_positions = robot->_q.segment<7>(virtual_base_dof);
+		robot_velocities = robot->_dq.segment<7>(virtual_base_dof);
 
-		base_sensor_position = robot->_q.head<base_sensor_dof>();
-		base_sensor_velocity = robot->_dq.head<base_sensor_dof>();
-		ee_sensor_position = robot->_q.tail<ee_sensor_dof>();
-		ee_sensor_velocity = robot->_dq.tail<ee_sensor_dof>();
+		virtual_base_position = robot->_q.head<virtual_base_dof>();
 
 		robot->updateModel();
 		robot->gravityVector(joint_gravity,world_gravity);
-		joint_gravity.head<base_sensor_dof>() << 0,0,0;
-		joint_gravity.tail<ee_sensor_dof>() << 0,0,0;
+		joint_gravity.head<virtual_base_dof>() = Eigen::VectorXd::Zero(virtual_base_dof);
 
+		base_sensor->update(sim);
+		ee_sensor->update(sim);
+		base_sensor->getForce(base_force);
+		base_sensor->getMoment(base_moment);
+		ee_sensor->getForce(ee_force);
+		ee_sensor->getMoment(ee_moment);
+		base_force_and_moment << base_force, base_moment;
+		ee_force_and_moment << ee_force, ee_moment;
 
-		// compute sensor force from relaxed sensor position
-		base_sensor_force = -base_sensor_stiffness*base_sensor_position - base_sensor_damping*base_sensor_velocity;
-		ee_sensor_force = -ee_sensor_stiffness*ee_sensor_position - ee_sensor_damping*ee_sensor_velocity;
 
 		// write joint kinematics to redis
 		redis_client.setEigenMatrixDerived(JOINT_ANGLES_KEY, robot_positions);
 		redis_client.setEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot_velocities);
-		redis_client.setEigenMatrixDerived(BASE_FORCE_SENSOR_FORCE_KEY, base_sensor_force);
-		redis_client.setEigenMatrixDerived(BASE_FORCE_SENSOR_POSITION_KEY, base_sensor_position);
-		redis_client.setEigenMatrixDerived(EE_FORCE_SENSOR_FORCE_KEY, ee_sensor_force);
-		redis_client.setEigenMatrixDerived(EE_FORCE_SENSOR_POSITION_KEY, ee_sensor_position);
+		redis_client.setEigenMatrixDerived(VIRTUAL_BASE_POSITION_KEY, virtual_base_position);
+
+		redis_client.setEigenMatrixDerived(BASE_FORCE_SENSOR_FORCE_KEY, base_force_and_moment);
+		redis_client.setEigenMatrixDerived(EE_FORCE_SENSOR_FORCE_KEY, ee_force_and_moment);
 
 		redis_client.setCommandIs(SIM_TIMESTAMP_KEY,std::to_string(timer.elapsedTime()));
 
@@ -155,9 +170,11 @@ int main() {
 
 		if(sim_counter % 500 == 0)
 		{
-			std::cout << "base sensor forces : \t" << base_sensor_force.transpose() << std::endl;
-			std::cout << "end effector sensor forces : \t" << ee_sensor_force.transpose() << std::endl;
-			std::cout << std::endl;
+			std::cout << "base force : " << base_force.transpose() << std::endl;
+			std::cout << "base moment : " << base_moment.transpose() << std::endl;
+			std::cout << "ee force : " << ee_force.transpose() << std::endl;
+			std::cout << "ee moment : " << ee_moment.transpose() << std::endl;
+			std::cout << "\n\n" << std::endl;
 		}
 
 	}

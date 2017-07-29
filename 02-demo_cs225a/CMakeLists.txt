@@ -1,8 +1,8 @@
 # create an executable
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IIWA_FORCECONTROL_BINARY_DIR}/02-demo_cs225a)
-ADD_EXECUTABLE (controller2 controller_main.cpp)
-ADD_EXECUTABLE (simulation2 simulation_main.cpp)
-ADD_EXECUTABLE (visualizer2 visualizer_main.cpp)
+ADD_EXECUTABLE (controller2 controller_main.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
+ADD_EXECUTABLE (simulation2 simulation_main.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
+ADD_EXECUTABLE (visualizer2 visualizer_main.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
 
 # and link the library against the executable
 TARGET_LINK_LIBRARIES (controller2 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})

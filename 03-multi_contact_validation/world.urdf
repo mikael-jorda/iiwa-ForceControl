@@ -6,7 +6,7 @@
 		<!-- model node is required -->
 		<model dir="../../robot_models/kuka_iiwa/03-multi_contact_validation" path="kuka_iiwa_base_sensor.urdf" name="kuka_iiwa" />
 		<!-- origin node is optional -->
-		<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+		<origin xyz="0.0 0.0 0.101" rpy="0 0 0" />
 	</robot>
 
 	<static_object name="Floor">
@@ -22,7 +22,7 @@
 	        <geometry>
 	            <box size="3.0 3.0 0.1" />
 	        </geometry>
-	        <material name="material_red">
+	        <material name="material_grey">
 		        <color rgba="0.1 0.1 0.1 1.0" />
 	        </material>
 	    </visual>
@@ -43,6 +43,25 @@
 	        </geometry>
 	        <material name="material_red">
 		        <color rgba="1 0.1 0.1 1.0" />
+	        </material>
+	    </visual>
+	</static_object>
+
+	<static_object name="Box2">
+		<origin xyz="0 0 0" rpy="0 0 0" />
+		<collision>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <box size="1 1 0.1" />
+	        </geometry>
+	    </collision>
+	    <visual>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <box size="1 1 0.1" />
+	        </geometry>
+	        <material name="material_blue">
+		        <color rgba="0.1 0.1 0.1 1.0" />
 	        </material>
 	    </visual>
 	</static_object>

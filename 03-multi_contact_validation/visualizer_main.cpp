@@ -4,8 +4,12 @@
 
 #include "model/ModelInterface.h"
 #include "simulation/SimulationInterface.h"
-#include "graphics/GraphicsInterface.h"
+// #include "graphics/GraphicsInterface.h"
+#include "graphics/ChaiGraphics.h"
 #include "redis/RedisClient.h"
+#include "force_sensor/ForceSensorSim.h"
+#include "force_sensor/ForceSensorDisplay.h"
+
 
 #include <GLFW/glfw3.h> //must be loaded after loading opengl/glew
 
@@ -23,12 +27,14 @@ const string camera_name = "camera_fixed";
 // - read:
 const std::string JOINT_ANGLES_KEY  = "sai2::iiwaForceControl::iiwaBot::sensors::q";
 const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::sensors::dq";
-const std::string BASE_FORCE_SENSOR_POSITION_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::base_force_sensor::position";
-const std::string EE_FORCE_SENSOR_POSITION_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::ee_force_sensor::position";
+const std::string VIRTUAL_BASE_POSITION_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::virtual_base::position";
+const std::string BASE_FORCE_SENSOR_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::base_force_sensor::force";
+const std::string EE_FORCE_SENSOR_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::sensors::ee_force_sensor::force";
 
 // force sensor dof
-const int base_sensor_dof = 3;
-const int ee_sensor_dof = 3;
+const int virtual_base_dof = 6;
+
+bool showForces = true;
 
 // callback to print glfw errors
 void glfwError(int error, const char* description);
@@ -58,12 +64,18 @@ int main() {
 	redis_client.serverIs(info);
 
 	// load graphics scene
-	auto graphics = new Graphics::GraphicsInterface(world_file, Graphics::chai, Graphics::urdf, true);
+	auto graphics = new Graphics::ChaiGraphics(world_file, Graphics::urdf, true);
 	Eigen::Vector3d camera_pos, camera_lookat, camera_vertical;
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 
 	// load robots
 	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
+
+	// create force sensor objects
+	ForceSensorSim* base_force_sensor = new ForceSensorSim(robot_name, "base_link", Eigen::Affine3d::Identity(), robot);
+	ForceSensorDisplay* base_force_display = new ForceSensorDisplay(base_force_sensor, graphics);
+	ForceSensorSim* ee_force_sensor = new ForceSensorSim(robot_name, "link6", Eigen::Affine3d::Identity(), robot);
+	ForceSensorDisplay* ee_force_display = new ForceSensorDisplay(ee_force_sensor, graphics);
 
 	/*------- Set up visualization -------*/
     // set up error callback
@@ -101,23 +113,40 @@ int main() {
 
 	Eigen::VectorXd robot_positions(7);
 	Eigen::VectorXd robot_velocities(7);
-	Eigen::VectorXd base_sensor_position(base_sensor_dof);
-	Eigen::VectorXd base_sensor_velocity(base_sensor_dof);
-	Eigen::VectorXd ee_sensor_position(ee_sensor_dof);
-	Eigen::VectorXd ee_sensor_velocity(ee_sensor_dof);
+	Eigen::VectorXd virtual_base_position(virtual_base_dof);
+	Eigen::VectorXd virtual_base_velocity(virtual_base_dof);
+
+	virtual_base_position.setZero();
+	virtual_base_velocity.setZero();
+
     // while window is open:
     while (!glfwWindowShouldClose(window))
 	{
 		// read from Redis
+		redis_client.getEigenMatrixDerived(VIRTUAL_BASE_POSITION_KEY, virtual_base_position);
 		redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, robot_positions);
-		redis_client.getEigenMatrixDerived(BASE_FORCE_SENSOR_POSITION_KEY, base_sensor_position);
-		redis_client.getEigenMatrixDerived(EE_FORCE_SENSOR_POSITION_KEY, ee_sensor_position);
 		redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot_velocities);
-		robot->_q << base_sensor_position, robot_positions, ee_sensor_position;
-		robot->_dq << base_sensor_velocity, robot_velocities, ee_sensor_velocity;
+
+		robot->_q << virtual_base_position, robot_positions;
+		robot->_dq << virtual_base_velocity, robot_velocities;
 
 		// update transformations
 		robot->updateModel();
+
+		if (showForces) {
+			// updateForceSensorSim(force_sensor);
+			Eigen::VectorXd base_force_and_moment(6);
+			redis_client.getEigenMatrixDerived(BASE_FORCE_SENSOR_FORCE_KEY, base_force_and_moment);
+			base_force_sensor->_data->_force = base_force_and_moment.head<3>();
+			base_force_sensor->_data->_moment = base_force_and_moment.tail<3>();
+			base_force_display->update();
+			
+			Eigen::VectorXd ee_force_and_moment(6);
+			redis_client.getEigenMatrixDerived(EE_FORCE_SENSOR_FORCE_KEY, ee_force_and_moment);
+			ee_force_sensor->_data->_force = ee_force_and_moment.head<3>();
+			ee_force_sensor->_data->_moment = ee_force_and_moment.tail<3>();
+			ee_force_display->update();
+		}
 
 		// update graphics. this automatically waits for the correct amount of time
 		int width, height;
