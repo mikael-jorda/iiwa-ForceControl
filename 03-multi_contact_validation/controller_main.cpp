@@ -17,7 +17,8 @@ void stop(int){runloop = false;}
 using namespace std;
 
 const string world_file = "../resources/03-multi_contact_validation/world.urdf";
-const string robot_file = "../../robot_models/kuka_iiwa/03-multi_contact_validation/kuka_iiwa.urdf";
+// const string robot_file = "../../robot_models/kuka_iiwa/03-multi_contact_validation/kuka_iiwa.urdf";
+const string robot_file = "../../robot_models/kuka_iiwa/03-multi_contact_validation/kuka_iiwa_base_sensor.urdf";
 const string robot_name = "Kuka-IIWA";
 
 unsigned long long controller_counter = 0;
@@ -69,34 +70,9 @@ int main() {
 	Eigen::MatrixXd N_prec;
 
 	// Joint control
-	Eigen::VectorXd joint_task_desired_position(dof), joint_task_torques(dof);
+	Eigen::VectorXd joint_task_desired_position(dof), joint_task_torques(dof), joint_gravity(dof);
 
 	double joint_kv = 20.0;
-
-	// Orientation task
-	OrientationTask ori_task = OrientationTask(dof);
-	ori_task.link_name = "link6";
-	ori_task.setKp(500.0);
-	ori_task.setKv(70.0);
-
-	Eigen::VectorXd ori_task_torques(dof);
-	Eigen::Matrix3d initial_orientation;
-	robot->rotation(initial_orientation, ori_task.link_name);
-	ori_task.desired_orientation = initial_orientation;
-	ori_task.desired_orientation = initial_orientation;
-
-	// operational space position task
-	HybridPositionTask pos_task = HybridPositionTask(dof);
-	pos_task.link_name = "link5";
-	pos_task.pos_in_link = Eigen::Vector3d(0.0, 0.0, 0.0);
-	pos_task.setKp(100.0);
-	pos_task.setKv(20.0);
-
-	Eigen::VectorXd pos_task_torques(dof);
-	Eigen::Vector3d initial_position;
-	robot->position(initial_position,pos_task.link_name,pos_task.pos_in_link);
-	pos_task.current_position = initial_position;
-	pos_task.desired_position = initial_position;
 
 	// create a loop timer
 	double control_freq = 1000;
@@ -125,54 +101,15 @@ int main() {
 		if(controller_counter%20 == 0)
 		{
 			robot->updateModel();
-
-			/////////////////////////// update jacobians, mass matrices and nullspaces
-			N_prec = Eigen::MatrixXd::Identity(dof,dof);
-
-			// orientation controller
-			robot->Jw(ori_task.jacobian, ori_task.link_name);
-			ori_task.projected_jacobian = ori_task.jacobian * N_prec;
-			robot->operationalSpaceMatrices(ori_task.Lambda, ori_task.Jbar, ori_task.N,
-									ori_task.projected_jacobian, N_prec);
-			N_prec = ori_task.N;
-
-			// position controller 
-			robot->Jv(pos_task.jacobian,pos_task.link_name,pos_task.pos_in_link);
-			pos_task.projected_jacobian = pos_task.jacobian * N_prec;
-			robot->operationalSpaceMatrices(pos_task.Lambda, pos_task.Jbar, pos_task.N,
-									pos_task.projected_jacobian, N_prec);
-			N_prec = pos_task.N;
 		}
 
 		////////////////////////////// Compute joint torques
 		double time = controller_counter/control_freq;
 
-		//---- orientation controller
-		// update current orientation
-		robot->rotation(ori_task.current_orientation, ori_task.link_name);
-		ori_task.current_angular_velocity = ori_task.projected_jacobian*robot->_dq;
-
-		// compute torques
-		ori_task.computeTorques(ori_task_torques);
-
-		//---- position controller 
-		// update current position
-		robot->position(pos_task.current_position, pos_task.link_name, pos_task.pos_in_link);
-		pos_task.current_velocity = pos_task.projected_jacobian * robot->_dq;
-
-		if(controller_counter < 1350)
-		{
-			pos_task.desired_position += Eigen::Vector3d(0,0,-0.00025);
-		}
-
-		// compute joint torques
-		pos_task.computeTorques(pos_task_torques);
-
-		//----- Joint nullspace damping
-		joint_task_torques = robot->_M*( - joint_kv*robot->_dq);
+		robot->gravityVector(joint_gravity);
 
 		//------ Final torques
-		command_torques = pos_task_torques + ori_task_torques + N_prec.transpose()*joint_task_torques;
+		command_torques = -joint_gravity;
 
 		redis_client.setEigenMatrixDerived(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 

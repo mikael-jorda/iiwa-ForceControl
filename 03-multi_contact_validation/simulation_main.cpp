@@ -67,9 +67,10 @@ int main() {
 
 	// set initial position to match kuka driver
 	sim->setJointPosition(robot_name, 0+virtual_base_dof, 90.0/180.0*M_PI);
-	sim->setJointPosition(robot_name, 1+virtual_base_dof, 5/180.0*M_PI);
-	sim->setJointPosition(robot_name, 3+virtual_base_dof, 15/180.0*M_PI);
-	sim->setJointPosition(robot_name, 5+virtual_base_dof, 15/180.0*M_PI);
+	sim->setJointPosition(robot_name, 1+virtual_base_dof, 25/180.0*M_PI);
+	// sim->setJointPosition(robot_name, 1+virtual_base_dof, 50/180.0*M_PI);
+	sim->setJointPosition(robot_name, 3+virtual_base_dof, 60/180.0*M_PI);
+	sim->setJointPosition(robot_name, 5+virtual_base_dof, 35/180.0*M_PI);
 	// for(int i=0; i < 7+virtual_base_dof; i++)
 	// {
 	// 	sim->setJointPosition(robot_name, i, 0);

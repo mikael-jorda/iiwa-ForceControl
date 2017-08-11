@@ -34,7 +34,8 @@ const std::string EE_FORCE_SENSOR_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::
 // force sensor dof
 const int virtual_base_dof = 6;
 
-bool showForces = true;
+// bool showForces = true;
+bool showForces = false;
 
 // callback to print glfw errors
 void glfwError(int error, const char* description);
