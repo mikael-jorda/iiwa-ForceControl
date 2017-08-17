@@ -10,7 +10,6 @@
 #include "force_sensor/ForceSensorSim.h"
 #include "force_sensor/ForceSensorDisplay.h"
 
-
 #include <GLFW/glfw3.h> //must be loaded after loading opengl/glew
 
 #include <iostream>

@@ -22,6 +22,7 @@ const string robot_file = "../../robot_models/kuka_iiwa/03-multi_contact_validat
 const string robot_name = "Kuka-IIWA";
 
 unsigned long long controller_counter = 0;
+std::string fgc_command_enabled = "";
 
 // redis keys:
 // - write:
@@ -55,28 +56,21 @@ int main() {
 	// load robots
 	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
 
-	int dof = robot->dof();
-	std::cout << "dof : " << dof << endl << endl;
-	std::cout << "q : " << robot->_q.transpose() << endl << endl;
-	int actuated_dof = dof-6;	
-	Eigen::VectorXd actuated_joint_positions(actuated_dof), actuated_joints_velocities(actuated_dof);
-	
 	// read from Redis
-	redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, actuated_joint_positions);
-	redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, actuated_joints_velocities);
-	robot->_q.tail(actuated_dof) = actuated_joint_positions;
-	robot->_dq.tail(actuated_dof) = actuated_joints_velocities;
+	redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
+	redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot->_dq);
 
 	////////////////////////////////////////////////
 	///    Prepare the different controllers   /////
 	////////////////////////////////////////////////
 	robot->updateModel();
 
-	Eigen::VectorXd command_torques = Eigen::VectorXd::Zero(dof-6);
+	int dof = robot->dof();
+	Eigen::VectorXd command_torques = Eigen::VectorXd::Zero(dof);
 	Eigen::MatrixXd N_prec;
 
 	// Joint control
-	Eigen::VectorXd joint_task_desired_position(actuated_dof), joint_task_torques(actuated_dof), joint_gravity(actuated_dof);
+	Eigen::VectorXd joint_task_desired_position(dof), joint_task_torques(dof), joint_gravity(dof);
 
 	double joint_kv = 20.0;
 
@@ -91,47 +85,6 @@ int main() {
 	Eigen::VectorXd base_sensed_force = Eigen::VectorXd::Zero(3);
 	Eigen::VectorXd ee_sensed_force = Eigen::VectorXd::Zero(3);
 
-	// prepare virtual linkage model framework
-	// assume forces and momenta at each contact
-	Eigen::Matrix3d Rb, Ree, Robject;
-	Eigen::MatrixXd R_0_loc = Eigen::MatrixXd::Zero(12,12);
-
-	vector<string> link_names;
-	link_names.push_back("base_link");
-	link_names.push_back("link6");
-
-	vector<Eigen::Vector3d> pos_in_links;
-	pos_in_links.push_back(Eigen::Vector3d(0,0,0));
-	pos_in_links.push_back(Eigen::Vector3d(0.0,0,0.05));
-
-	vector<Model::ContactNature> contact_natures;
-	contact_natures.push_back(Model::SurfaceContact);
-	contact_natures.push_back(Model::SurfaceContact);
-
-	Eigen::Vector3d center_point;
-	Eigen::Vector3d pb, pee;
-
-	Eigen::MatrixXd G_tmp, P, Q, G, G_bar;
-	Eigen::MatrixXd G11, G12, G13, G21, G22, G23;
-
-	// fill in P and Q
-	P = Eigen::MatrixXd::Zero(12,12);
-	Eigen::VectorXd p_fill = Eigen::VectorXd::Zero(12);
-	p_fill << 6, 7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 11;
-	for(int i=0; i<12; i++)
-	{
-		// P(i,p_fill(i)) = 1;
-		P(p_fill(i),i) = 1;
-	}
-
-	Q = Eigen::MatrixXd::Zero(12,12);
-	Eigen::VectorXd q_fill = Eigen::VectorXd::Zero(12);
-	q_fill << 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11;
-	for(int i=0; i<12; i++)
-	{
-		Q(i,q_fill(i)) = 1;
-	}
-
 	// while window is open:
 	while (runloop) {
 
@@ -139,13 +92,10 @@ int main() {
 		timer.waitForNextLoop();
 
 		// read from Redis
-		redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, actuated_joint_positions);
-		redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, actuated_joints_velocities);
+		redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
+		redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot->_dq);
 		redis_client.getEigenMatrixDerived(BASE_FORCE_SENSOR_FORCE_KEY, base_sensed_force);
 		redis_client.getEigenMatrixDerived(EE_FORCE_SENSOR_FORCE_KEY, ee_sensed_force);
-
-		robot->_q.tail(actuated_dof) = actuated_joint_positions;
-		robot->_dq.tail(actuated_dof) = actuated_joints_velocities;
 
 		// update the model 20 times slower
 		if(controller_counter%20 == 0)
@@ -153,47 +103,13 @@ int main() {
 			robot->updateModel();
 		}
 
-		robot->position(pb, link_names[0], pos_in_links[0]);
-		robot->position(pee, link_names[1], pos_in_links[1]);
-		robot->rotation(Rb, link_names[0]);
-		robot->rotation(Ree, link_names[1]);
-		R_0_loc.block<3,3>(0,0) = Rb;
-		R_0_loc.block<3,3>(3,3) = Ree;
-		R_0_loc.block<3,3>(6,6) = Rb;
-		R_0_loc.block<3,3>(9,9) = Ree;
-		robot->GraspMatrixAtGeometricCenter(G_tmp, Robject, center_point, link_names, pos_in_links, contact_natures);
-		G_tmp = G_tmp*R_0_loc;
-		G = Q*G_tmp*P;
-		G_bar = G.inverse();
-
-		G11 = G_bar.block<5,6>(0,0);
-		G12 = G_bar.block<5,1>(0,6);
-		G13 = G_bar.block<5,5>(0,7);
-		G21 = G_bar.block<7,6>(5,0);
-		G22 = G_bar.block<7,1>(5,6);
-		G23 = G_bar.block<7,5>(5,7);
-
-		if(controller_counter %500 == 0)
-		{
-			// std::cout << "q : \t" << robot->_q.transpose() << endl;
-			// std::cout << "p base : \t" << (pb).transpose() << endl;
-			// std::cout << "p ee : \t" << (pee).transpose() << endl;
-			// std::cout << "p base-ee : \t" << (pee-pb).transpose() << endl;
-			std::cout << "R object : \n" << Robject << endl;
-			std::cout << "R base : \n" << Rb << endl;
-			std::cout << "R ee : \n" << Ree << endl;
-			std::cout << "G13 : \n" << G13 << endl;
-			std::cout << "G13 inverse : \n" << G13.inverse() << endl << endl;
-		}
-
-
 		////////////////////////////// Compute joint torques
 		double time = controller_counter/control_freq;
 
-		// robot->gravityVector(joint_gravity);
+		robot->gravityVector(joint_gravity);
 
 		//------ Final torques
-		// command_torques = -joint_gravity;
+		command_torques = -joint_gravity;
 
 		redis_client.setEigenMatrixDerived(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 

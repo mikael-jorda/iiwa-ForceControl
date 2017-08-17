@@ -62,13 +62,16 @@ int main() {
 	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
 
 	// create simulated force sensors
-	auto base_sensor = new ForceSensorSim(robot_name, "base_link", Eigen::Affine3d::Identity(), robot);
-	auto ee_sensor = new ForceSensorSim(robot_name, "link6", Eigen::Affine3d::Identity(), robot);
+	Eigen::Affine3d base_sensor_location = Eigen::Affine3d::Identity();
+	base_sensor_location.translation() = Eigen::Vector3d(0.0, 0.0, 0.0);
+	Eigen::Affine3d ee_sensor_location = Eigen::Affine3d::Identity();
+	ee_sensor_location.translation() = Eigen::Vector3d(0.0, 0.0, 0.05);
+	auto base_sensor = new ForceSensorSim(robot_name, "base_link", base_sensor_location, robot);
+	auto ee_sensor = new ForceSensorSim(robot_name, "link6", ee_sensor_location, robot);
 
 	// set initial position to match kuka driver
 	sim->setJointPosition(robot_name, 0+virtual_base_dof, 90.0/180.0*M_PI);
 	sim->setJointPosition(robot_name, 1+virtual_base_dof, 25/180.0*M_PI);
-	// sim->setJointPosition(robot_name, 1+virtual_base_dof, 50/180.0*M_PI);
 	sim->setJointPosition(robot_name, 3+virtual_base_dof, 60/180.0*M_PI);
 	sim->setJointPosition(robot_name, 5+virtual_base_dof, 35/180.0*M_PI);
 	// for(int i=0; i < 7+virtual_base_dof; i++)
@@ -77,16 +80,16 @@ int main() {
 	// }
 
 	sim->setCollisionRestitution(0);
+	sim->setCoeffFrictionStatic(0.6);
 
 	// Get the world gravity for gravity comp
 	Eigen::Vector3d world_gravity = sim->_world->getGravity().eigen();
-	// auto world_gravity_tmp = sim->_world->m_dynWorld->gravity;
 	// Eigen::Vector3d world_gravity = Eigen::Vector3d(world_gravity_tmp[0],world_gravity_tmp[1],world_gravity_tmp[2]);
 
 	// std::cout << "gravity : " << world_gravity.transpose() << std::endl;
 
 	// create a loop timer
-	double sim_freq = 10000.0;  // set the simulation frequency. Ideally 10kHz
+	double sim_freq = 1000.0;  // set the simulation frequency. Ideally 10kHz
 	LoopTimer timer;
 	timer.setLoopFrequency(sim_freq);   // 10 KHz
 	// timer.setThreadHighPriority();  // make timing more accurate. requires running executable as sudo.
@@ -107,10 +110,6 @@ int main() {
 	Eigen::VectorXd ee_force_and_moment(6);
 	Eigen::Vector3d ee_force;
 	Eigen::Vector3d ee_moment;
-	// base_force_and_moment.setZero();
-	// base_moment.setZero();
-	// ee_force_and_moment.setZero();
-	// ee_moment.setZero();
 
 	Eigen::VectorXd robot_positions(7);
 	Eigen::VectorXd robot_velocities(7);
@@ -131,8 +130,6 @@ int main() {
 		// sim->setJointTorques(robot_name, Eigen::VectorXd::Zero(virtual_base_dof + 7));
 
 		// update simulation by 1ms
-		// sim->integrate(1.0/sim_freq);
-		// sim->integrate(0.001/sim_freq*1000.0);
 		sim->integrate(0.001);
 
 		// update kinematic models
