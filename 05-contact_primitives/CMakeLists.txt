@@ -1,0 +1,15 @@
+# create an executable
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IIWA_FORCECONTROL_BINARY_DIR}/05-contact_primitives)
+ADD_EXECUTABLE (app5 app.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
+
+# and link the library against the executable
+TARGET_LINK_LIBRARIES (app5 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
+
+# export resources such as model files.
+# NOTE: this requires an install build
+SET(RESOURCE_DIR ${IIWA_FORCECONTROL_BINARY_DIR}/resources)
+FILE(MAKE_DIRECTORY ${RESOURCE_DIR})
+SET(APP_RESOURCE_DIR ${RESOURCE_DIR}/05-contact_primitives)
+FILE(MAKE_DIRECTORY ${APP_RESOURCE_DIR})
+FILE(COPY world.urdf DESTINATION ${APP_RESOURCE_DIR})
+FILE(COPY kuka_iiwa.urdf DESTINATION ${APP_RESOURCE_DIR})
