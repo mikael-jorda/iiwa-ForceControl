@@ -146,6 +146,18 @@
                 <mesh filename="../../../robot_models/kuka_iiwa/meshes/link6.obj" scale="1 1 1" />
             </geometry>
         </visual>
+        <visual>
+            <origin xyz="0 0 0.08" rpy="0 0 0" />
+            <geometry>
+                <box size="0.08 0.08 0.08" />
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0.08" rpy="0 0 0" />
+            <geometry>
+                <box size="0.08 0.08 0.08" />
+            </geometry>
+        </collision>
 <!--         <collision>
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>

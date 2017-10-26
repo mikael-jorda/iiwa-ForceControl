@@ -10,12 +10,20 @@
 
 #include "force_sensor/ForceSensorSim.h"
 #include "timer/LoopTimer.h"
+#include "tasks/HybridPositionTask.h"
+#include "tasks/OrientationTask.h"
 
 #include <GLFW/glfw3.h> //must be loaded after loading opengl/glew as part of graphicsinterface
 
 #include <signal.h>
 bool fSimulationRunning = false;
 void sighandler(int){fSimulationRunning = false;}
+
+#define INITIAL                0
+#define GO_TO_CONTACT          1
+#define ALIGN                  2
+
+int state = INITIAL;
 
 using namespace std;
 
@@ -49,6 +57,8 @@ bool fTransYn = false;
 bool fTransZp = false;
 bool fTransZn = false;
 bool fRotPanTilt = false;
+
+
 
 int main (int argc, char** argv) {
 	cout << "Loading URDF world model file: " << world_file << endl;
@@ -189,20 +199,44 @@ void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
 
 	int dof = robot->dof();
 	Eigen::VectorXd command_torques = Eigen::VectorXd::Zero(dof);
+	Eigen::MatrixXd N_prec = Eigen::MatrixXd::Zero(dof,dof);
 
 	// joint task
 	Eigen::VectorXd joint_task_torques = Eigen::VectorXd::Zero(dof);
-	double kp_joint = 100.0;
-	double kv_joint = 20.0;
+	double kp_joint = 0.0;
+	double kv_joint = 10.0;
 
-	Eigen::VectorXd q_d = Eigen::VectorXd::Zero(dof);
-	q_d       <<  90.0/180.0*M_PI,
-				 -30.0/180.0*M_PI,
-				  00.0/180.0*M_PI,
-				  40.0/180.0*M_PI,
-				  00.0/180.0*M_PI,
-				 -90.0/180.0*M_PI,
-				  00.0/180.0*M_PI;
+	// Eigen::VectorXd q_d = Eigen::VectorXd::Zero(dof);
+
+	string link_name = "link6";
+	Eigen::Vector3d pos_in_link = Eigen::Vector3d(0.0,0.0,-0.081);
+
+	// Orientation task
+	OrientationTask ori_task = OrientationTask(dof);
+	ori_task.link_name = link_name;
+	ori_task.setKp(600.0);
+	ori_task.setKv(50.0);
+
+	Eigen::VectorXd ori_task_torques(dof);
+	Eigen::Matrix3d initial_orientation;
+	robot->rotation(initial_orientation, ori_task.link_name);
+	ori_task.desired_orientation = initial_orientation;
+	ori_task.desired_orientation = initial_orientation;
+
+	// pos task
+	HybridPositionTask pos_task(dof);
+	pos_task.link_name = link_name;
+	pos_task.pos_in_link = pos_in_link;
+	pos_task.setKp(100.0);
+	pos_task.setKv(20.0);
+	pos_task.useVelocitySaturation(true, Eigen::Vector3d(0.2, 0.2, 0.2));
+
+	Eigen::VectorXd pos_task_torques = Eigen::VectorXd::Zero(dof);
+	Eigen::Vector3d initial_position;
+	robot->position(initial_position, link_name, pos_in_link);
+	pos_task.current_position = initial_position;
+	pos_task.desired_position = initial_position;
+
 	// create a loop timer
 	double control_freq = 1000;
 	LoopTimer timer;
@@ -225,19 +259,56 @@ void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
 		sim->getJointVelocities(robot_name, robot->_dq);
 		robot->updateModel();
 
+		N_prec = Eigen::MatrixXd::Identity(dof,dof);
+
+		// orientation controller
+		robot->Jw(ori_task.jacobian, ori_task.link_name);
+		ori_task.projected_jacobian = ori_task.jacobian * N_prec;
+		robot->operationalSpaceMatrices(ori_task.Lambda, ori_task.Jbar, ori_task.N,
+								ori_task.projected_jacobian, N_prec);
+		N_prec = ori_task.N;
+
+		// position controller 
+		robot->Jv(pos_task.jacobian,pos_task.link_name,pos_task.pos_in_link);
+		pos_task.projected_jacobian = pos_task.jacobian * N_prec;
+		robot->operationalSpaceMatrices(pos_task.Lambda, pos_task.Jbar, pos_task.N,
+								pos_task.projected_jacobian, N_prec);
+		N_prec = pos_task.N;
+
 		// -------------------------------------------
 		////////////////////////////// Compute joint torques
 		double time = controller_counter/control_freq;
 
-		//----- Joint task
-		if (time > 1.5)
-		{
+		//orientation task
+		robot->rotation(ori_task.current_orientation, ori_task.link_name);
+		ori_task.current_angular_velocity = ori_task.projected_jacobian*robot->_dq;
 
-			joint_task_torques = robot->_M*( -kp_joint*(robot->_q - q_d) - kv_joint*robot->_dq);
+		// -- pos task
+		robot->position(pos_task.current_position, link_name, pos_in_link);
+		pos_task.current_velocity = pos_task.projected_jacobian * robot->_dq;
+
+		if(state == INITIAL)
+		{
+			if(time > 1.0)
+			{
+				state = GO_TO_CONTACT;
+			}
 		}
 
+		if(state == GO_TO_CONTACT)
+		{
+			pos_task.desired_position(0) = initial_position(0) + 0.25;
+			pos_task.desired_position(2) = initial_position(2) - 0.25;
+		}
+
+		ori_task.computeTorques(ori_task_torques);
+		pos_task.computeTorques(pos_task_torques);
+
+		// joint task
+		joint_task_torques = N_prec.transpose() * robot->_M *(-kv_joint*robot->_dq);
+
 		//------ Final torques
-		command_torques = joint_task_torques;
+		command_torques = ori_task_torques + pos_task_torques + joint_task_torques;
 		// command_torques.setZero();
 
 		// -------------------------------------------
