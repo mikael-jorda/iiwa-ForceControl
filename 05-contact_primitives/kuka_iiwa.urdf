@@ -150,12 +150,14 @@
             <origin xyz="0 0 0.08" rpy="0 0 0" />
             <geometry>
                 <box size="0.08 0.08 0.08" />
+                <!-- <box size="0.02 0.02 0.38" /> -->
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0.08" rpy="0 0 0" />
             <geometry>
                 <box size="0.08 0.08 0.08" />
+                <!-- <box size="0.02 0.02 0.38" /> -->
             </geometry>
         </collision>
 <!--         <collision>

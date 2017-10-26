@@ -78,14 +78,14 @@ int main (int argc, char** argv) {
 	// load simulation world
 	auto sim = new Simulation::Sai2Simulation(world_file, Simulation::urdf, false);
 	sim->setCollisionRestitution(0);
-	sim->setCoeffFrictionStatic(0.6);
+	sim->setCoeffFrictionStatic(0.2);
 
 	// set initial condition
 	robot->_q <<  90.0/180.0*M_PI,
 				 -30.0/180.0*M_PI,
 				  00.0/180.0*M_PI,
 				  60.0/180.0*M_PI,
-				  00.0/180.0*M_PI,
+				 -08.0/180.0*M_PI,
 				 -90.0/180.0*M_PI,
 				  00.0/180.0*M_PI;
 	sim->setJointPositions(robot_name, robot->_q);
@@ -237,6 +237,15 @@ void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
 	pos_task.current_position = initial_position;
 	pos_task.desired_position = initial_position;
 
+	// force sensor
+	Eigen::Vector3d sensed_forces;
+	Eigen::Vector3d sensed_moments;
+
+	string sensor_link_name = "link6";
+	Eigen::Affine3d fsensor_location = Eigen::Affine3d::Identity();
+	fsensor_location.translation() = Eigen::Vector3d(0.0, 0.0, 0.40);
+	auto fsensor = new ForceSensorSim(robot_name, sensor_link_name, fsensor_location, robot);
+
 	// create a loop timer
 	double control_freq = 1000;
 	LoopTimer timer;
@@ -259,6 +268,16 @@ void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
 		sim->getJointVelocities(robot_name, robot->_dq);
 		robot->updateModel();
 
+		// read force sensor values
+		fsensor->update(sim);
+		fsensor->getForce(sensed_forces);
+		sensed_forces = -sensed_forces;
+		fsensor->getMoment(sensed_moments);
+		sensed_moments = -sensed_moments;
+		pos_task.sensed_force = sensed_forces;
+		ori_task.sensed_moments = sensed_moments;
+
+		// update tasks model
 		N_prec = Eigen::MatrixXd::Identity(dof,dof);
 
 		// orientation controller
@@ -297,8 +316,34 @@ void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
 
 		if(state == GO_TO_CONTACT)
 		{
-			pos_task.desired_position(0) = initial_position(0) + 0.25;
-			pos_task.desired_position(2) = initial_position(2) - 0.25;
+			pos_task.desired_position(2) -= 0.0001;
+			if(sensed_forces(2) < -5)
+			{
+				ori_task.desired_moments = Eigen::Vector3d(0.0,0.0,0.0);
+				ori_task.setKpf(10.0);
+				ori_task.setKvf(20.0);
+				ori_task.force_control = true;
+
+				pos_task.desired_force = Eigen::Vector3d(0.0,0.0,-5);
+
+				state = ALIGN;
+			}
+			if(controller_counter % 1000 == 0)
+			{
+				cout << "sensed forces : " << sensed_forces.transpose() << endl << "sensed moments : " << sensed_moments.transpose() << endl << endl;
+			}
+		}
+
+		if(state == ALIGN)
+		{
+			Eigen::Vector3d z_axis = ori_task.current_orientation.block(0,2,3,1);
+			pos_task.setForceAxis(z_axis);
+
+			if(controller_counter % 1000 == 0)
+			{
+				cout << "sensed forces : " << sensed_forces.transpose() << endl << "sensed moments : " << sensed_moments.transpose() << endl;
+				cout << "z axis : " << z_axis.transpose() << endl << endl;
+			}
 		}
 
 		ori_task.computeTorques(ori_task_torques);
@@ -343,6 +388,8 @@ void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
 //------------------------------------------------------------------------------
 void simulation(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
 	fSimulationRunning = true;
+
+
 
 	// create a timer
 	LoopTimer timer;

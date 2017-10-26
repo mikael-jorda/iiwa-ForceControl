@@ -26,6 +26,8 @@ public:
 
 		kp = Eigen::Matrix3d::Zero();
 		kv = Eigen::Matrix3d::Zero();
+		kpf = Eigen::Matrix3d::Zero();
+		kvf = Eigen::Matrix3d::Zero();
 
 		jacobian = Eigen::MatrixXd::Zero(3,dof);
 		projected_jacobian = Eigen::MatrixXd::Zero(3,dof);
@@ -35,13 +37,25 @@ public:
 
 		task_force = Eigen::Vector3d::Zero();
 		orientation_error = Eigen::Vector3d::Zero();
+
+		desired_moments = Eigen::Vector3d::Zero();
+		sensed_moments = Eigen::Vector3d::Zero();
+		force_control = false;
 	}
 
 	// computes the task torques. PD controller for now
 	void computeTorques(Eigen::VectorXd& task_joint_torques)
 	{
-		orientationError(orientation_error, desired_orientation, current_orientation);
-		task_force = Lambda*(-kp*orientation_error - kv*(current_angular_velocity - desired_angular_velocity ));
+
+		if(force_control)
+		{
+			task_force = Lambda*(-kpf*(sensed_moments - desired_moments) - kvf*(current_angular_velocity - desired_angular_velocity ));
+		}
+		else
+		{
+			orientationError(orientation_error, desired_orientation, current_orientation);
+			task_force = Lambda*(-kp*orientation_error - kv*(current_angular_velocity - desired_angular_velocity ));
+		}
 
 		task_joint_torques = projected_jacobian.transpose()*task_force;
 	}
@@ -58,6 +72,18 @@ public:
 		kv = d*Eigen::Matrix3d::Identity();
 	}
 
+	// set kpf for all the joints
+	void setKpf(const double d)
+	{
+		kpf = d*Eigen::Matrix3d::Identity();
+	}
+
+	// set kpf for all the joints
+	void setKvf(const double d)
+	{
+		kvf = d*Eigen::Matrix3d::Identity();
+	}
+
 	Eigen::Vector3d getOrientationError()
 	{return orientation_error;}
 
@@ -69,17 +95,25 @@ public:
 	Eigen::Matrix3d current_orientation;
 	Eigen::Matrix3d desired_orientation;
 
+	Eigen::Vector3d desired_moments;
+	Eigen::Vector3d sensed_moments;
+
 	Eigen::Vector3d current_angular_velocity;
 	Eigen::Vector3d desired_angular_velocity;
 
 	Eigen::Matrix3d kp;
 	Eigen::Matrix3d kv;
+	Eigen::Matrix3d kpf;
+	Eigen::Matrix3d kvf;
 
 	Eigen::MatrixXd jacobian;
 	Eigen::MatrixXd projected_jacobian;
 	Eigen::MatrixXd Lambda;
 	Eigen::MatrixXd Jbar;
 	Eigen::MatrixXd N;
+
+	bool force_control;
+
 
 private:
 
