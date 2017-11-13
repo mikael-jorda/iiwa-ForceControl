@@ -8,7 +8,8 @@
 #include <string>
 
 #include "tasks/OrientationTask.h"
-#include "tasks/HybridPositionTask.h"
+// #include "tasks/HybridPositionTask.h"
+#include "tasks/TestTask.h"
 
 #include <signal.h>
 bool runloop = true;
@@ -114,7 +115,7 @@ int main() {
 	ori_task.desired_orientation = initial_orientation;
 
 	// operational space position task
-	HybridPositionTask pos_task = HybridPositionTask(dof);
+	TestTask pos_task =	TestTask(dof);
 	pos_task.link_name = "link5";
 	pos_task.pos_in_link = Eigen::Vector3d(0.0, 0.0, 0.0);
 	pos_task.setKp(150.0);
@@ -278,8 +279,8 @@ int main() {
 			}				
 			if(ol_fc_buffer == 0)
 			{
-				pos_task.setKpf(1.5);
-				pos_task.setKif(1.3);
+				pos_task.setKpf(1.3);
+				pos_task.setKif(1.0);
 				pos_task.desired_force = Eigen::Vector3d(0,0,-5);
 				pos_task.setClosedLoopForceControl(control_freq);
 				pos_task.enablePassivity();
@@ -322,6 +323,9 @@ int main() {
 			// std::cout << "end effector orientation : \n" << ori_task.current_orientation << std::endl;
 			// std::cout << "sensor force in sensor frame : \n" << ee_sensed_force.transpose() << std::endl;
 			std::cout << "\nsensor force in world frame : \n" << sensed_force_moment.head(3).transpose() << std::endl;
+			std::cout << "power input " << pos_task.current_power_input_ << std::endl;
+			std::cout << "power output " << pos_task.current_power_output_ << std::endl;
+			std::cout << "vc " << pos_task.force_feedback_control_signal.transpose() << std::endl;
 		}
 
 		// compute joint torques
