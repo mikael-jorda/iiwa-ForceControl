@@ -1,0 +1,18 @@
+# create an executable
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IIWA_FORCECONTROL_BINARY_DIR}/00-passivity_tests)
+ADD_EXECUTABLE (controller0 controller_main.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
+ADD_EXECUTABLE (simulation0 simulation_main.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
+ADD_EXECUTABLE (visualizer0 visualizer_main.cpp ${IIWA_FORCECONTROL_COMMON_SOURCE})
+
+# and link the library against the executable
+TARGET_LINK_LIBRARIES (controller0 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (simulation0 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (visualizer0 ${IIWA_FORCECONTROL_COMMON_LIBRARIES})
+
+# export resources such as model files.
+# NOTE: this requires an install build
+SET(RESOURCE_DIR ${IIWA_FORCECONTROL_BINARY_DIR}/resources)
+FILE(MAKE_DIRECTORY ${RESOURCE_DIR})
+SET(APP_RESOURCE_DIR ${RESOURCE_DIR}/00-passivity_tests)
+FILE(MAKE_DIRECTORY ${APP_RESOURCE_DIR})
+FILE(COPY world.urdf kuka_iiwa.urdf DESTINATION ${APP_RESOURCE_DIR})
