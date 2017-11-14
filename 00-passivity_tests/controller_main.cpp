@@ -31,7 +31,7 @@ const std::string robot_name = "Kuka-IIWA";
 
 unsigned long long controller_counter = 0;
 
-const bool simulation = true;
+const bool simulation = false;
 
 // redis keys:
 // - write:
@@ -40,6 +40,7 @@ std::string JOINT_TORQUES_COMMANDED_KEY;
 std::string JOINT_ANGLES_KEY;
 std::string JOINT_VELOCITIES_KEY;
 std::string EE_FORCE_SENSOR_KEY;
+const std::string MASSMATRIX_KEY = "sai2::KUKA_IIWA::sensors::massmatrix";
 
 // - data log
 const std::string EE_DESIRED_FORCE_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::desired_force";
@@ -144,6 +145,8 @@ int main() {
 	int zero_fs_buffer = zero_fs_counter + 2000;
 	int ol_fc_buffer = 4000;
 
+	Eigen::Vector3d force_resolving_point = Eigen::Vector3d(0.0,0.0,0.10);
+
 	state = INITIAL;
 
 	// while window is open:
@@ -161,6 +164,11 @@ int main() {
 		if(controller_counter%20 == 0)
 		{
 			robot->updateModel();
+			if(!simulation)
+			{
+				redis_client.getEigenMatrixDerived(MASSMATRIX_KEY, robot->_M);
+				robot->_M_inv = robot->_M.inverse();
+			}
 
 			/////////////////////////// update jacobians, mass matrices and nullspaces
 			N_prec = Eigen::MatrixXd::Identity(dof,dof);
@@ -238,6 +246,7 @@ int main() {
 			else
 			{
 				sensor_bias /= zero_fs_counter;
+				sensor_bias.tail(3) << 0,0,0;
 				state = GO_TO_CONTACT;
 				std::cout << "Go to contact\n" << std::endl;
 			}
@@ -273,6 +282,9 @@ int main() {
 
 		else if(state == OL_FORCE_CONTROL)
 		{
+			Eigen::Vector3d localz = ori_task.current_orientation.block<3,1>(0,2);
+			pos_task.setForceAxis(localz);
+			pos_task.desired_force = 7.0*localz;
 			// rotate forces to world frame and unbias, and set to controller
 			if(simulation)
 			{
@@ -280,16 +292,28 @@ int main() {
 			}
 			else
 			{
+				// first transform the forces and moments to the resolving point
+				Eigen::MatrixXd f_transform = Eigen::MatrixXd::Identity(6,6);
+				f_transform.block<3,3>(3,0) = Model::ModelInterface::CrossProductOperator(-force_resolving_point);
+				sensed_force_moment = f_transform * (sensed_force_moment - sensor_bias);
+				// then rotate to global frame
 				Eigen::MatrixXd R6d_sensor = Eigen::MatrixXd::Zero(6,6);
 				R6d_sensor.block<3,3>(0,0) = ori_task.current_orientation;
 				R6d_sensor.block<3,3>(3,3) = ori_task.current_orientation;
-				sensed_force_moment = R6d_sensor * (sensed_force_moment - sensor_bias);
+				sensed_force_moment = R6d_sensor * sensed_force_moment;
 			}				
+
+			// Eigen::Matrix3d k_surface = Eigen::Matrix3d::Identity();
+			// k_surface(0,0) = 2.0;
+			// k_surface(1,1) = 1.4;
+			// k_surface(2,2) = 0.9;
+			// ori_task_torques = ori_task.projected_jacobian.transpose()* (-k_surface*sensed_force_moment.tail(3) - 10.0*ori_task.current_angular_velocity);
 			if(ol_fc_buffer == 0)
 			{
-				pos_task.setKpf(1.3);
-				pos_task.setKif(1.5);
-				pos_task.desired_force = Eigen::Vector3d(0,0,-5);
+				pos_task.setKpf(0.7);
+				pos_task.setKif(1.3);
+				// pos_task.desired_force = Eigen::Vector3d(0,0,-10);
+				pos_task.desired_force = 10.0*localz;
 				pos_task.setClosedLoopForceControl(control_freq);
 				pos_task.enablePassivity();
 				state = CL_FORCE_CONTROL;
@@ -307,6 +331,9 @@ int main() {
 
 		else if(state == CL_FORCE_CONTROL)
 		{
+			Eigen::Vector3d localz = ori_task.current_orientation.block<3,1>(0,2);
+			pos_task.setForceAxis(localz);
+			pos_task.desired_force = 10.0*localz;
 			// rotate forces to world frame and unbias, and set to controller
 			if(simulation)
 			{
@@ -314,12 +341,23 @@ int main() {
 			}
 			else
 			{
+				// first transform the forces and moments to the resolving point
+				Eigen::MatrixXd f_transform = Eigen::MatrixXd::Identity(6,6);
+				f_transform.block<3,3>(3,0) = Model::ModelInterface::CrossProductOperator(-force_resolving_point);
+				sensed_force_moment = f_transform * (sensed_force_moment - sensor_bias);
+				// then rotate to global frame
 				Eigen::MatrixXd R6d_sensor = Eigen::MatrixXd::Zero(6,6);
 				R6d_sensor.block<3,3>(0,0) = ori_task.current_orientation;
 				R6d_sensor.block<3,3>(3,3) = ori_task.current_orientation;
-				sensed_force_moment = R6d_sensor * (sensed_force_moment - sensor_bias);
+				sensed_force_moment = R6d_sensor * sensed_force_moment;
 			}
 			pos_task.sensed_force = sensed_force_moment.head(3);
+
+			// Eigen::Matrix3d k_surface = Eigen::Matrix3d::Identity();
+			// k_surface(0,0) = 2.0;
+			// k_surface(1,1) = 1.4;
+			// k_surface(2,2) = 0.9;
+			// ori_task_torques = ori_task.projected_jacobian.transpose()* (-k_surface*sensed_force_moment.tail(3) - 10.0*ori_task.current_angular_velocity);
 
 			if(controller_counter % 1000 == 0)
 			{
@@ -330,11 +368,12 @@ int main() {
 		if(controller_counter % 1000 == 1)
 		{
 			// std::cout << "end effector orientation : \n" << ori_task.current_orientation << std::endl;
-			// std::cout << "sensor force in sensor frame : \n" << ee_sensed_force.transpose() << std::endl;
-			std::cout << "\nsensor force in world frame : \n" << sensed_force_moment.head(3).transpose() << std::endl;
-			std::cout << "power input " << pos_task.current_power_input_ << std::endl;
-			std::cout << "power output " << pos_task.current_power_output_ << std::endl;
-			std::cout << "vc " << pos_task.force_feedback_control_signal.transpose() << std::endl;
+			// std::cout << "sensor force in sensor frame : \n" << sensed_force_moment.head(3).transpose() << std::endl;
+			std::cout << "sensor moments in sensor frame : \n" << sensed_force_moment.tail(3).transpose() << std::endl;
+			// std::cout << "\nsensor force in world frame : \n" << sensed_force_moment.head(3).transpose() << std::endl;
+			// std::cout << "power input " << pos_task.current_power_input_ << std::endl;
+			// std::cout << "power output " << pos_task.current_power_output_ << std::endl;
+			// std::cout << "vc " << pos_task.force_feedback_control_signal.transpose() << std::endl;
 		}
 
 		// compute joint torques
