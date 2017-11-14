@@ -41,6 +41,8 @@ bool fTransXp = false;
 bool fTransXn = false;
 bool fTransYp = false;
 bool fTransYn = false;
+bool fTransZp = false;
+bool fTransZn = false;
 bool fRotPanTilt = false;
 
 int main() {
@@ -128,6 +130,9 @@ int main() {
 
 	    // move scene camera as required
     	// graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
+    	Eigen::Vector3d cam_depth_axis;
+    	cam_depth_axis = camera_lookat - camera_pos;
+    	cam_depth_axis.normalize();
     	Eigen::Vector3d cam_up_axis;
     	// cam_up_axis = camera_vertical;
     	// cam_up_axis.normalize();
@@ -153,6 +158,14 @@ int main() {
 	    	// camera_pos = camera_pos - 0.05*cam_lookat_axis;
 	    	camera_pos = camera_pos - 0.05*cam_up_axis;
 	    	camera_lookat = camera_lookat - 0.05*cam_up_axis;
+	    }
+	    if (fTransZp) {
+	    	camera_pos = camera_pos + 0.1*cam_depth_axis;
+	    	camera_lookat = camera_lookat + 0.1*cam_depth_axis;
+	    }	    
+	    if (fTransZn) {
+	    	camera_pos = camera_pos - 0.1*cam_depth_axis;
+	    	camera_lookat = camera_lookat - 0.1*cam_depth_axis;
 	    }
 	    if (fRotPanTilt) {
 	    	// get current cursor position
@@ -208,6 +221,12 @@ void keySelect(GLFWwindow* window, int key, int scancode, int action, int mods)
 			break;
 		case GLFW_KEY_DOWN:
 			fTransYn = set;
+			break;
+		case GLFW_KEY_A:
+			fTransZp = set;
+			break;
+		case GLFW_KEY_Z:
+			fTransZn = set;
 			break;
 		default:
 			break;

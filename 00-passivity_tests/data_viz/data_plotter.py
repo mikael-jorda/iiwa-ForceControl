@@ -18,6 +18,8 @@ force = file[:,1:4]
 desired_force = file[:,4:7]
 Rc = file[:,7]
 
+print np.mean(Rc)
+
 plt.figure(1)
 # plt.plot(time, force[:,2],'r',label="Force")
 plt.plot(force[:,2],'r',label="Force")

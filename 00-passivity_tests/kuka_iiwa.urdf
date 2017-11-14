@@ -155,13 +155,15 @@
         <visual>
             <origin xyz="0 0 0.08" rpy="0 0 0" />
             <geometry>
-                <box size="0.08 0.08 0.08" />
+                <sphere radius="0.04" />
+                <!-- <box size="0.08 0.08 0.08" /> -->
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0.08" rpy="0 0 0" />
             <geometry>
-                <box size="0.08 0.08 0.08" />
+                <sphere radius="0.04" />
+                <!-- <box size="0.08 0.08 0.08" /> -->
             </geometry>
         </collision>
     </link>

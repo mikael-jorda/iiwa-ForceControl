@@ -9,6 +9,7 @@
 
 #include <Eigen/Dense>
 #include <string>
+#include <math.h>
 
 class TestTask
 {
@@ -43,8 +44,10 @@ public:
 
 		passivity_enabled = false;
 		Rc_ = 1.0;
-	    PO_input_ = 0;
-	    PO_output_ = 0;
+		past_Rc_vector = Eigen::VectorXd::Zero(buffer_size);
+		previous_Rc_ = 1.0;
+	    PO_ = 0;
+	    E_to_dissipate = 0;
 	    current_power_input_ = 0;
 	    current_power_output_ = 0;
 	    release_counter_ = 333;
@@ -76,12 +79,12 @@ public:
 		// closed loop term
 		if(closed_loop_force_control)
 		{
-			force_integrated_error += (sensed_force - desired_force)/controller_frequency;
-			force_feedback_control_signal = -kpf * (sensed_force - desired_force) - kif * force_integrated_error;
+			force_integrated_error += sigma_force * (sensed_force - desired_force)/controller_frequency;
+			force_feedback_control_signal = -kpf * sigma_force * (sensed_force - desired_force) - kif * force_integrated_error;
 
 
 
-			double tmp_Rc = Rc_;
+			// double tmp_Rc = Rc_;
 
 			current_power_input_ = (double) (desired_force.transpose()*(sigma_force * force_feedback_control_signal));
 	//        current_power_input_ *= tmp_Rc;
@@ -93,8 +96,7 @@ public:
 			if(passivity_enabled) // only resetting PO enabled
 			{
 
-			PO_input_ += current_power_input_; // add latest value
-			PO_output_ += current_power_output_; // 
+			PO_ += (current_power_input_ - current_power_output_)/controller_frequency;
 
 				for(int i=0; i<4; i++)
 				{
@@ -108,48 +110,116 @@ public:
 						power_input_minimum_detection_buffer[3] < power_input_minimum_detection_buffer[4] &&
 						isPassive())
 				{
-					PO_input_ = power_input_minimum_detection_buffer[3] + power_input_minimum_detection_buffer[4];
-					PO_output_ = 0;
+					PO_ = power_input_minimum_detection_buffer[3] + power_input_minimum_detection_buffer[4];
 				}
 
 
-				// very heuristic passivity controller tuned for the kuka
-				if(!isPassive() && release_counter_ < 200)
+				// chose depending on PO and Vc. Not conclusive
+				// if(!isPassive())
+				// {
+				// 	double Vc_square = force_feedback_control_signal.transpose() * sigma_force * force_feedback_control_signal;
+				// 	if(Vc_square < 0.1)
+				// 	{
+				// 		Vc_square = 0;
+				// 		Rc_ = 1;
+				// 	}
+				// 	else
+				// 	{
+				// 		Rc_ = 1+PO_*controller_frequency/Vc_square;
+				// 		if(Rc_ < 0)
+				// 		{
+				// 			E_to_dissipate += -Vc_square/controller_frequency - PO_;
+				// 			// std::cout << "\nRc negative. Still " << E_to_dissipate << " to dissipate" << std::endl;
+				// 			std::cout << "\nRc negative" << std::endl;
+				// 			std::cout << "PO :  " << PO_ << std::endl;
+				// 			Rc_ = 0;
+				// 		}
+				// 	}
+				// 	Rc_ = (Rc_ + previous_Rc_)/2;
+				// 	PO_ += (1-Rc_)*Vc_square/controller_frequency;
+				// 	std::cout << "Vc square : " << Vc_square << std::endl;
+				// 	std::cout << "Rc : " << Rc_ << std::endl;
+				// }
+				// else
+				// {
+				// 	double Vc_square = force_feedback_control_signal.transpose() * sigma_force * force_feedback_control_signal;
+				// 	Rc_ = 1.0;
+				// 	Rc_ = (Rc_ + previous_Rc_)/2;
+				// 	PO_ += (1-Rc_)*Vc_square/controller_frequency;
+				// }
+				// previous_Rc_ = Rc_;
+
+				double Vc_square = force_feedback_control_signal.transpose() * sigma_force * force_feedback_control_signal;
+				if(!isPassive())
 				{
-					Rc_ /= 2;
-					release_counter_ = 333;
-				}
-				else if(release_counter_ <= 0)
-				{
-					Rc_ += 0.1;
-					release_counter_ = 333;
+					Rc_ = (Rc_ + exp(PO_)*(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)))/(1+(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)));
+					// Rc_ = exp(-PO_);
+					// Rc_ = (exp(PO_) + past_Rc_vector.sum())/(buffer_size+1);
+
+					// Eigen::VectorXd tmp = past_Rc_vector.head(buffer_size-1);
+					// past_Rc_vector.tail(buffer_size-1) = tmp;
+					// past_Rc_vector(0) = exp(PO_);
+					// Rc_ = (2*Rc_ + previous_Rc_)/3;
+					std::cout << "Rc : " << Rc_ << std::endl;
 				}
 				else
 				{
-					release_counter_--;
-				}
+					// Rc_ = (Rc_ + 1*(Rc_ - 1)*(Rc_ - 1))/(1+(Rc_ - 1)*(Rc_ - 1));
+					Rc_ = (Rc_ + 1*abs(Rc_ - exp(-PO_)))/(1+abs(Rc_ - exp(-PO_)));
+					// Rc_ = 1;
+					// Rc_ = (1 + past_Rc_vector.sum())/(buffer_size+1);
 
-				if(release_counter_ < 0)
-				{
-					release_counter_ = 0;
+					// Eigen::VectorXd tmp = past_Rc_vector.head(buffer_size-1);
+					// past_Rc_vector.tail(buffer_size-1) = tmp;
+					// past_Rc_vector(0) = 1;
+					// Rc_ = (10 + past_Rc_vector.sum())/30;
 				}
+				Rc_ = Rc_ * 0.9;
+				PO_ += (1-Rc_)*Vc_square/controller_frequency;
 
-				if(Rc_ < 0.1)
-				{
-					Rc_ = 0.1;
-				}
-				if(Rc_ > 1)
-				{
-					Rc_ = 1;
-				}
+
+				// std::cout << past_Rc_vector.transpose() << std::endl;
+				// previous_Rc_ = Rc_;
+
+				// Rc_ = 0.40;
+
+				// very heuristic passivity controller tuned for the kuka
+				// if(!isPassive() && release_counter_ < 200)
+				// {
+				// 	Rc_ /= 2;
+				// 	release_counter_ = 333;
+				// }
+				// else if(release_counter_ <= 0)
+				// {
+				// 	Rc_ += 0.1;
+				// 	release_counter_ = 333;
+				// }
+				// else
+				// {
+				// 	release_counter_--;
+				// }
+
+				// if(release_counter_ < 0)
+				// {
+				// 	release_counter_ = 0;
+				// }
+
+				// if(Rc_ < 0.1)
+				// {
+				// 	Rc_ = 0.1;
+				// }
+				// if(Rc_ > 1)
+				// {
+				// 	Rc_ = 1;
+				// }
 			}
 			else
 			{
 				Rc_ = 1.0;
 			}
 
-			force_related_forces = 0.9*sigma_force * desired_force + sigma_force * Rc_ * force_feedback_control_signal - kvf * current_velocity;
-			// force_related_forces = sigma_force * desired_force + Lambda * (sigma_force * Rc_ * force_feedback_control_signal - sigma_force * kvf * current_velocity);
+			force_related_forces = desired_force + sigma_force * (Rc_ * force_feedback_control_signal - kvf * current_velocity);
+			// force_related_forces = sigma_force * desired_force + Lambda * sigma_force * (Rc_ * force_feedback_control_signal - kvf * current_velocity);
 			// force_related_forces = Lambda * sigma_force * Rc_ * force_feedback_control_signal - kvf * current_velocity;
 		}
 		else
@@ -237,8 +307,9 @@ public:
 	{
 		passivity_enabled = true;
 		Rc_ = 1.0;
-	    PO_input_ = 0;
-	    PO_output_ = 0;
+		previous_Rc_ = 0;
+		past_Rc_vector.setZero();
+	    PO_ = 0;
 	    current_power_input_ = 0;
 	    current_power_output_ = 0;
 	    release_counter_ = 333;
@@ -255,7 +326,7 @@ public:
 	        std::cout << "Passivity not enabled\n";
 	        return true;
 	    }
-	    return (PO_input_-PO_output_ > 1);
+	    return (PO_ > 0);
 	}
 
 	// set kp for all the joints
@@ -303,8 +374,11 @@ public:
 
 	bool passivity_enabled = false;
 	double Rc_ = 1.0;
-    double PO_input_;
-    double PO_output_;
+	double previous_Rc_ = 1.0;
+	Eigen::VectorXd past_Rc_vector;
+	int buffer_size = 500;
+    double PO_;
+    double E_to_dissipate;
     double current_power_input_;
     double current_power_output_;
     int release_counter_;

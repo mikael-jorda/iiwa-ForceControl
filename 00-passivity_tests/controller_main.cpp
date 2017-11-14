@@ -211,8 +211,16 @@ int main() {
 		{
 			if(pos_task.current_position(2) < 1.01*pos_task.desired_position(2))
 			{
-				state = ZERO_FORCE_SENSOR;
-				std::cout << "Zero force sensor\n" << std::endl;
+				if(simulation)
+				{
+					state = GO_TO_CONTACT;
+					std::cout << "Go to contact\n" << std::endl;
+				}
+				else
+				{
+					state = ZERO_FORCE_SENSOR;
+					std::cout << "Zero force sensor\n" << std::endl;
+				}
 			}
 		}
 
@@ -280,7 +288,7 @@ int main() {
 			if(ol_fc_buffer == 0)
 			{
 				pos_task.setKpf(1.3);
-				pos_task.setKif(1.0);
+				pos_task.setKif(1.5);
 				pos_task.desired_force = Eigen::Vector3d(0,0,-5);
 				pos_task.setClosedLoopForceControl(control_freq);
 				pos_task.enablePassivity();
@@ -295,6 +303,7 @@ int main() {
 				// std::cout << "position task torques : " << pos_task_torques.transpose() << std::endl; 
 			// }
 		}
+
 
 		else if(state == CL_FORCE_CONTROL)
 		{
@@ -318,7 +327,7 @@ int main() {
 			}
 		}
 
-		if(controller_counter % 1000 == 0)
+		if(controller_counter % 1000 == 1)
 		{
 			// std::cout << "end effector orientation : \n" << ori_task.current_orientation << std::endl;
 			// std::cout << "sensor force in sensor frame : \n" << ee_sensed_force.transpose() << std::endl;
