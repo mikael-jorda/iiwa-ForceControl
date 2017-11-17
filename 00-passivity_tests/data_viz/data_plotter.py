@@ -29,5 +29,6 @@ plt.legend()
 
 plt.figure(2)
 plt.plot(Rc)
+plt.axis([0, np.size(Rc), -0.05, 1.05])
 
 plt.show()

@@ -31,7 +31,8 @@ const std::string robot_name = "Kuka-IIWA";
 
 unsigned long long controller_counter = 0;
 
-const bool simulation = false;
+const bool simulation = true;
+// const bool simulation = false;
 
 // redis keys:
 // - write:
@@ -310,7 +311,7 @@ int main() {
 			// ori_task_torques = ori_task.projected_jacobian.transpose()* (-k_surface*sensed_force_moment.tail(3) - 10.0*ori_task.current_angular_velocity);
 			if(ol_fc_buffer == 0)
 			{
-				pos_task.setKpf(0.7);
+				pos_task.setKpf(1.0);
 				pos_task.setKif(1.3);
 				// pos_task.desired_force = Eigen::Vector3d(0,0,-10);
 				pos_task.desired_force = 10.0*localz;
@@ -334,6 +335,10 @@ int main() {
 			Eigen::Vector3d localz = ori_task.current_orientation.block<3,1>(0,2);
 			pos_task.setForceAxis(localz);
 			pos_task.desired_force = 10.0*localz;
+			// if(controller_counter > 13000)
+			// {
+				// pos_task.desired_force = 8.0*localz;
+			// }
 			// rotate forces to world frame and unbias, and set to controller
 			if(simulation)
 			{
@@ -361,7 +366,10 @@ int main() {
 
 			if(controller_counter % 1000 == 0)
 			{
+				std::cout << "contoller counter : " << controller_counter << std::endl;
 				std::cout << "Rc : " << pos_task.Rc_ << std::endl;
+				std::cout << "PO : " << pos_task.PO_ << std::endl;
+				std::cout << std::endl;
 			}
 		}
 
@@ -369,7 +377,7 @@ int main() {
 		{
 			// std::cout << "end effector orientation : \n" << ori_task.current_orientation << std::endl;
 			// std::cout << "sensor force in sensor frame : \n" << sensed_force_moment.head(3).transpose() << std::endl;
-			std::cout << "sensor moments in sensor frame : \n" << sensed_force_moment.tail(3).transpose() << std::endl;
+			// std::cout << "sensor moments in sensor frame : \n" << sensed_force_moment.tail(3).transpose() << std::endl;
 			// std::cout << "\nsensor force in world frame : \n" << sensed_force_moment.head(3).transpose() << std::endl;
 			// std::cout << "power input " << pos_task.current_power_input_ << std::endl;
 			// std::cout << "power output " << pos_task.current_power_output_ << std::endl;

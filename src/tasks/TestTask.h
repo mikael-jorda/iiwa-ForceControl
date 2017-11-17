@@ -84,13 +84,13 @@ public:
 
 
 
-			// double tmp_Rc = Rc_;
+			double tmp_Rc = Rc_;
 
 			current_power_input_ = (double) (desired_force.transpose()*(sigma_force * force_feedback_control_signal));
 	//        current_power_input_ *= tmp_Rc;
 			// current_power_output_ = (double) (previous_force_related_forces_.transpose()*(sigma_force_*vel_));
 			// current_power_output_ = 0.0;
-			current_power_output_ = (double) (force_feedback_control_signal.transpose()*(sigma_force * force_feedback_control_signal));
+			current_power_output_ = (double) (tmp_Rc*force_feedback_control_signal.transpose()*(sigma_force * force_feedback_control_signal));
 			// std::cout << "power input : " << current_power_input_ - current_power_output_ << std::endl;
 
 			if(passivity_enabled) // only resetting PO enabled
@@ -149,11 +149,18 @@ public:
 				// }
 				// previous_Rc_ = Rc_;
 
+
 				double Vc_square = force_feedback_control_signal.transpose() * sigma_force * force_feedback_control_signal;
+				Eigen::Vector3d deltaf = sensed_force - desired_force;
+				double deltaf_square = deltaf.transpose()*sigma_force*deltaf;
 				if(!isPassive())
 				{
-					Rc_ = (Rc_ + exp(PO_)*(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)))/(1+(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)));
+					// double increase_weight = (Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_)));
+					// Rc_ = (Rc_ + exp(PO_)*(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)))/(1+(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)));
 					// Rc_ = exp(-PO_);
+					// Rc_ = 1-atan(-PO_);
+					Rc_ = (Rc_ + (1-atan(-PO_))*deltaf_square) / (1+deltaf_square);
+					// Rc_ = (Rc_ + (1-atan(-PO_))*(Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_))))/(1+(Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_))));
 					// Rc_ = (exp(PO_) + past_Rc_vector.sum())/(buffer_size+1);
 
 					// Eigen::VectorXd tmp = past_Rc_vector.head(buffer_size-1);
@@ -164,8 +171,10 @@ public:
 				}
 				else
 				{
+					// double increase_weight = (Rc_ - 1)*(Rc_ - 1);
+					Rc_ = (Rc_ + 1.0*deltaf_square)/(1+deltaf_square);
 					// Rc_ = (Rc_ + 1*(Rc_ - 1)*(Rc_ - 1))/(1+(Rc_ - 1)*(Rc_ - 1));
-					Rc_ = (Rc_ + 1*abs(Rc_ - exp(-PO_)))/(1+abs(Rc_ - exp(-PO_)));
+					// Rc_ = (Rc_ + 1*abs(Rc_ - exp(-PO_)))/(1+abs(Rc_ - exp(-PO_)));
 					// Rc_ = 1;
 					// Rc_ = (1 + past_Rc_vector.sum())/(buffer_size+1);
 
@@ -174,8 +183,8 @@ public:
 					// past_Rc_vector(0) = 1;
 					// Rc_ = (10 + past_Rc_vector.sum())/30;
 				}
-				Rc_ = Rc_ * 0.9;
-				PO_ += (1-Rc_)*Vc_square/controller_frequency;
+				// Rc_ = 0.9*Rc_;
+				PO_ += (tmp_Rc-Rc_)*Vc_square/controller_frequency;
 
 
 				// std::cout << past_Rc_vector.transpose() << std::endl;
