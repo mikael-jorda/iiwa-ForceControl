@@ -164,7 +164,7 @@ public:
 						// Rc_ = (Rc_ + exp(PO_)*(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)))/(1+(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)));
 						// Rc_ = exp(-PO_);
 						// Rc_ = 1-atan(-PO_);
-						Rc_ = (Rc_ + (1-atan(-PO_)/M_PI)*deltaf_square) / (1+deltaf_square);
+						Rc_ = (Rc_ + (1-2*atan(-PO_)/M_PI)*deltaf_square) / (1+deltaf_square);
 						// Rc_ -= atan(-PO_)/M_PI/10;
 						// Rc_ = (Rc_ + exp(PO_)*deltaf_square) / (1+deltaf_square);
 						// Rc_ = (Rc_ + (1-atan(-PO_))*(Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_))))/(1+(Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_))));
