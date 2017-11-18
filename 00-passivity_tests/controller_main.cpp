@@ -312,7 +312,8 @@ int main() {
 			if(ol_fc_buffer == 0)
 			{
 				pos_task.setKpf(1.0);
-				pos_task.setKif(1.3);
+				pos_task.setKif(1.5);
+				pos_task.setKvf(20.0);
 				// pos_task.desired_force = Eigen::Vector3d(0,0,-10);
 				pos_task.desired_force = 10.0*localz;
 				pos_task.setClosedLoopForceControl(control_freq);
@@ -334,7 +335,7 @@ int main() {
 		{
 			Eigen::Vector3d localz = ori_task.current_orientation.block<3,1>(0,2);
 			pos_task.setForceAxis(localz);
-			pos_task.desired_force = 10.0*localz;
+			pos_task.desired_force = (10.0 + 2.0*sin(2*M_PI*0.25*time))*localz;
 			// if(controller_counter > 13000)
 			// {
 				// pos_task.desired_force = 8.0*localz;

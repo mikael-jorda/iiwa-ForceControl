@@ -45,6 +45,7 @@ public:
 		passivity_enabled = false;
 		Rc_ = 1.0;
 		past_Rc_vector = Eigen::VectorXd::Zero(buffer_size);
+		counter = 0;
 		previous_Rc_ = 1.0;
 	    PO_ = 0;
 	    E_to_dissipate = 0;
@@ -150,41 +151,57 @@ public:
 				// previous_Rc_ = Rc_;
 
 
-				double Vc_square = force_feedback_control_signal.transpose() * sigma_force * force_feedback_control_signal;
-				Eigen::Vector3d deltaf = sensed_force - desired_force;
-				double deltaf_square = deltaf.transpose()*sigma_force*deltaf;
-				if(!isPassive())
-				{
-					// double increase_weight = (Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_)));
-					// Rc_ = (Rc_ + exp(PO_)*(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)))/(1+(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)));
-					// Rc_ = exp(-PO_);
-					// Rc_ = 1-atan(-PO_);
-					Rc_ = (Rc_ + (1-atan(-PO_))*deltaf_square) / (1+deltaf_square);
-					// Rc_ = (Rc_ + (1-atan(-PO_))*(Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_))))/(1+(Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_))));
-					// Rc_ = (exp(PO_) + past_Rc_vector.sum())/(buffer_size+1);
+				// if(counter % 10 == 0)
+				// {
+					double Vc_square = force_feedback_control_signal.transpose() * sigma_force * force_feedback_control_signal;
+					Eigen::Vector3d deltaf = sensed_force - desired_force;
+					double deltaf_square = deltaf.transpose()*sigma_force*deltaf;
+					// deltaf_square = deltaf_square*deltaf_square;
 
-					// Eigen::VectorXd tmp = past_Rc_vector.head(buffer_size-1);
-					// past_Rc_vector.tail(buffer_size-1) = tmp;
-					// past_Rc_vector(0) = exp(PO_);
-					// Rc_ = (2*Rc_ + previous_Rc_)/3;
-					std::cout << "Rc : " << Rc_ << std::endl;
-				}
-				else
-				{
-					// double increase_weight = (Rc_ - 1)*(Rc_ - 1);
-					Rc_ = (Rc_ + 1.0*deltaf_square)/(1+deltaf_square);
-					// Rc_ = (Rc_ + 1*(Rc_ - 1)*(Rc_ - 1))/(1+(Rc_ - 1)*(Rc_ - 1));
-					// Rc_ = (Rc_ + 1*abs(Rc_ - exp(-PO_)))/(1+abs(Rc_ - exp(-PO_)));
-					// Rc_ = 1;
-					// Rc_ = (1 + past_Rc_vector.sum())/(buffer_size+1);
+					if(!isPassive())
+					{
+						// double increase_weight = (Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_)));
+						// Rc_ = (Rc_ + exp(PO_)*(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)))/(1+(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)));
+						// Rc_ = exp(-PO_);
+						// Rc_ = 1-atan(-PO_);
+						Rc_ = (Rc_ + (1-atan(-PO_)/M_PI)*deltaf_square) / (1+deltaf_square);
+						// Rc_ -= atan(-PO_)/M_PI/10;
+						// Rc_ = (Rc_ + exp(PO_)*deltaf_square) / (1+deltaf_square);
+						// Rc_ = (Rc_ + (1-atan(-PO_))*(Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_))))/(1+(Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_))));
+						// Rc_ = (exp(PO_) + past_Rc_vector.sum())/(buffer_size+1);
 
-					// Eigen::VectorXd tmp = past_Rc_vector.head(buffer_size-1);
-					// past_Rc_vector.tail(buffer_size-1) = tmp;
-					// past_Rc_vector(0) = 1;
-					// Rc_ = (10 + past_Rc_vector.sum())/30;
-				}
+						// Eigen::VectorXd tmp = past_Rc_vector.head(buffer_size-1);
+						// past_Rc_vector.tail(buffer_size-1) = tmp;
+						// past_Rc_vector(0) = exp(PO_);
+						// Rc_ = (2*Rc_ + previous_Rc_)/3;
+						if(Rc_ < 0)
+						{
+							Rc_ = 0;
+						}
+						std::cout << "Rc : " << Rc_ << std::endl;
+					}
+					else
+					{
+						// double increase_weight = (Rc_ - 1)*(Rc_ - 1);
+						Rc_ = (Rc_ + 1.0*deltaf_square)/(1+deltaf_square);
+						// Rc_ += 0.05;
+						// Rc_ = (Rc_ + 1*(Rc_ - 1)*(Rc_ - 1))/(1+(Rc_ - 1)*(Rc_ - 1));
+						// Rc_ = (Rc_ + 1*abs(Rc_ - exp(-PO_)))/(1+abs(Rc_ - exp(-PO_)));
+						// Rc_ = 1;
+						// Rc_ = (1 + past_Rc_vector.sum())/(buffer_size+1);
+
+						// Eigen::VectorXd tmp = past_Rc_vector.head(buffer_size-1);
+						// past_Rc_vector.tail(buffer_size-1) = tmp;
+						// past_Rc_vector(0) = 1;
+						// Rc_ = (10 + past_Rc_vector.sum())/30;
+						if(Rc_ > 1)
+						{
+							Rc_ = 1;
+						}
+					}
+					PO_ += (tmp_Rc-Rc_)*Vc_square/controller_frequency;
+				// }
 				// Rc_ = 0.9*Rc_;
-				PO_ += (tmp_Rc-Rc_)*Vc_square/controller_frequency;
 
 
 				// std::cout << past_Rc_vector.transpose() << std::endl;
@@ -221,6 +238,7 @@ public:
 				// {
 				// 	Rc_ = 1;
 				// }
+				counter++;
 			}
 			else
 			{
@@ -318,6 +336,7 @@ public:
 		Rc_ = 1.0;
 		previous_Rc_ = 0;
 		past_Rc_vector.setZero();
+		counter = 0;
 	    PO_ = 0;
 	    current_power_input_ = 0;
 	    current_power_output_ = 0;
@@ -385,6 +404,7 @@ public:
 	double Rc_ = 1.0;
 	double previous_Rc_ = 1.0;
 	Eigen::VectorXd past_Rc_vector;
+	unsigned long long counter = 0;
 	int buffer_size = 500;
     double PO_;
     double E_to_dissipate;

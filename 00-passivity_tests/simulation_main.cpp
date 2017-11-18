@@ -33,6 +33,8 @@ const std::string JOINT_VELOCITIES_KEY = "sai2::iiwaForceControl::iiwaBot::senso
 const std::string SIM_TIMESTAMP_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::timestamp";
 const std::string EE_FORCE_SENSOR_KEY = "sai2::optoforceSensor::6Dsensor::force_moment";
 
+const std::string DISTURBANCE_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::disturbance";
+
 unsigned long long sim_counter = 0;
 
 // force sensor dof
@@ -89,15 +91,32 @@ int main() {
 	timer.setCtrlCHandler(sighandler);    // exit while loop on ctrl-c
 	timer.initializeTimer(1000000); // 1 ms pause before starting loop
 
+	std::string dist;
+	redis_client.setCommandIs(DISTURBANCE_KEY,"0");
+	Eigen::VectorXd disturbance_torque(dof);
+
 	while (runloop) {
 		// wait for next scheduled loop
 		timer.waitForNextLoop();
 
 		// read torques from Redis
 		redis_client.getEigenMatrixDerived(JOINT_TORQUES_COMMANDED_KEY, robot_torques);
+		redis_client.getCommandIs(DISTURBANCE_KEY, dist);
+
+		if(dist == "1")
+		{
+			Eigen::Vector3d disturbance_force = Eigen::Vector3d(0.0,1.0,5.0);
+			Eigen::MatrixXd J_dist;
+			robot->Jv(J_dist,"link5", Eigen::Vector3d::Zero());
+			disturbance_torque = J_dist.transpose()*disturbance_force;
+		}
+		else
+		{
+			disturbance_torque.setZero();
+		}
 
 		// robot_plus_sensor_torques << robot_torques, ee_sensor_force;
-		sim->setJointTorques(robot_name, robot_torques + joint_gravity);
+		sim->setJointTorques(robot_name, robot_torques + joint_gravity + disturbance_torque);
 
 		// update simulation by 1ms
 		sim->integrate(1/sim_freq);
