@@ -4,7 +4,7 @@
 
 	<robot name="Kuka-IIWA">
 		<!-- model node is required -->
-		<model dir="../../robot_models/kuka_iiwa/03-multi_contact_validation" path="kuka_iiwa_base_sensor.urdf" name="kuka_iiwa" />
+		<model dir="../resources/03-multi_contact_validation" path="kuka_iiwa_floating_base.urdf" name="kuka_iiwa" />
 		<!-- origin node is optional -->
 		<origin xyz="0.0 0.0 0.10001" rpy="0 0 0" />
 	</robot>
@@ -14,13 +14,13 @@
 		<collision>
 	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 	        <geometry>
-	            <box size="3.0 3.0 0.1" />
+	            <box size="1.0 1.0 0.1" />
 	        </geometry>
 	    </collision>
 	    <visual>
 	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 	        <geometry>
-	            <box size="3.0 3.0 0.1" />
+	            <box size="1.0 1.0 0.1" />
 	        </geometry>
 	        <material name="material_grey">
 		        <color rgba="0.1 0.1 0.1 1.0" />
@@ -28,20 +28,39 @@
 	    </visual>
 	</static_object>
 
+	<static_object name="Ceiling">
+		<origin xyz="0.0 0.0 1.39" rpy="0 0 0" />
+		<collision>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <box size="1.0 1.0 0.1" />
+	        </geometry>
+	    </collision>
+	    <visual>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <box size="1.0 1.0 0.1" />
+	        </geometry>
+	        <material name="material_white">
+		        <color rgba="0.6 0.6 0.6 0.5" />
+	        </material>
+	    </visual>
+	</static_object>
+
 	<light name="light1" type="directional">
-		<position xyz="-2.0 -2.0 2.0" />
+		<position xyz="-2.0 -2.0 1.0" />
 		<lookat xyz="0.0 0.0 0.0" />
 	</light>
 
 	<light name="light2" type="directional">
-		<position xyz="-2.0 2.0 2.0" />
-		<lookat xyz="0.0 0.0 0.0" />
+		<position xyz="-2.0 2.0 0.0" />
+		<lookat xyz="0.0 0.0 1.0" />
 	</light>
 
 	<camera name="camera_fixed">
-		<position xyz="-2.0 0.0 2.0" />
+		<position xyz="-2.5.0 0.0 1.0" />
 		<vertical xyz="0.0 0.0 1.0" />
-		<lookat xyz="0.0 0.0 0.8" />
+		<lookat xyz="0.0 0.0 1.0" />
 	</camera>
 
 	<!-- TODO: support stereo specification -->

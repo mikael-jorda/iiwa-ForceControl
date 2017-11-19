@@ -21,7 +21,7 @@ void sighandler(int sig)
 using namespace std;
 
 const string world_file = "../resources/03-multi_contact_validation/world.urdf";
-const string robot_file = "../../robot_models/kuka_iiwa/03-multi_contact_validation/kuka_iiwa_base_sensor.urdf";
+const string robot_file = "../resources/03-multi_contact_validation/kuka_iiwa_floating_base.urdf";
 const string robot_name = "Kuka-IIWA";
 
 // redis keys:
@@ -80,13 +80,13 @@ int main() {
 	// }
 
 	sim->setCollisionRestitution(0);
-	sim->setCoeffFrictionStatic(0.6);
+	sim->setCoeffFrictionStatic(0.0);
 
 	// Get the world gravity for gravity comp
 	Eigen::Vector3d world_gravity = sim->_world->getGravity().eigen();
 	// Eigen::Vector3d world_gravity = Eigen::Vector3d(world_gravity_tmp[0],world_gravity_tmp[1],world_gravity_tmp[2]);
 
-	// std::cout << "gravity : " << world_gravity.transpose() << std::endl;
+	std::cout << "gravity : " << world_gravity.transpose() << std::endl;
 
 	// create a loop timer
 	double sim_freq = 1000.0;  // set the simulation frequency. Ideally 10kHz

@@ -18,7 +18,7 @@
 using namespace std;
 
 const string world_file = "../resources/03-multi_contact_validation/world.urdf";
-const string robot_file = "../../robot_models/kuka_iiwa/03-multi_contact_validation/kuka_iiwa_base_sensor.urdf";
+const string robot_file = "../resources/03-multi_contact_validation/kuka_iiwa_floating_base.urdf";
 const string robot_name = "Kuka-IIWA";
 const string camera_name = "camera_fixed";
 
