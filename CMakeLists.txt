@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 2.8.12)
 project (iiwa-ForceControl)
 SET(CMAKE_CXX_FLAGS "-std=c++11")
+SET(CMAKE_BUILD_TYPE "Debug")
 
 # set common source
 set (IIWA_FORCECONTROL_COMMON_SOURCE
