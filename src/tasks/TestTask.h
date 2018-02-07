@@ -164,7 +164,7 @@ public:
 						// Rc_ = (Rc_ + exp(PO_)*(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)))/(1+(Rc_ - exp(-PO_))*(Rc_ - exp(-PO_)));
 						// Rc_ = exp(-PO_);
 						// Rc_ = 1-atan(-PO_);
-						Rc_ = (Rc_ + (1-2*atan(-PO_)/M_PI)*deltaf_square) / (1+deltaf_square);
+						Rc_ = (Rc_ + (1-2*atan(-0.1*PO_)/M_PI)*deltaf_square) / (1+deltaf_square);
 						// Rc_ -= atan(-PO_)/M_PI/10;
 						// Rc_ = (Rc_ + exp(PO_)*deltaf_square) / (1+deltaf_square);
 						// Rc_ = (Rc_ + (1-atan(-PO_))*(Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_))))/(1+(Rc_ - (1-atan(-PO_)))*(Rc_ - (1-atan(-PO_))));
@@ -245,7 +245,11 @@ public:
 				Rc_ = 1.0;
 			}
 
-			force_related_forces = desired_force + sigma_force * (Rc_ * force_feedback_control_signal - kvf * current_velocity);
+			double eff_mass_f = force_axis.transpose() * Lambda * force_axis;
+			// std::cout << "effective mass : " << eff_mass_f << std::endl;
+
+			// force_related_forces = desired_force + sigma_force * (Rc_ * force_feedback_control_signal - kvf * current_velocity);
+			force_related_forces = Lambda * sigma_force / eff_mass_f * (desired_force + (Rc_ * force_feedback_control_signal - kvf * current_velocity));
 			// force_related_forces = sigma_force * desired_force + Lambda * sigma_force * (Rc_ * force_feedback_control_signal - kvf * current_velocity);
 			// force_related_forces = Lambda * sigma_force * Rc_ * force_feedback_control_signal - kvf * current_velocity;
 		}

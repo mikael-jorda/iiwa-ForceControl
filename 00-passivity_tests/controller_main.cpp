@@ -1,6 +1,6 @@
 // This example application runs a controller for the IIWA
 
-#include "model/ModelInterface.h"
+#include "Sai2Model.h"
 #include "redis/RedisClient.h"
 #include "timer/LoopTimer.h"
 
@@ -84,7 +84,7 @@ int main() {
 
 	// load robots
 	// auto robot = new Model::ModelInterface(robot_file, Model::rbdl_kuka, Model::urdf, false);
-	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
+	auto robot = new Sai2Model::Sai2Model(robot_file, false);
 
 	// read from Redis
 	redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
@@ -295,7 +295,7 @@ int main() {
 			{
 				// first transform the forces and moments to the resolving point
 				Eigen::MatrixXd f_transform = Eigen::MatrixXd::Identity(6,6);
-				f_transform.block<3,3>(3,0) = Model::ModelInterface::CrossProductOperator(-force_resolving_point);
+				f_transform.block<3,3>(3,0) = Sai2Model::CrossProductOperator(-force_resolving_point);
 				sensed_force_moment = f_transform * (sensed_force_moment - sensor_bias);
 				// then rotate to global frame
 				Eigen::MatrixXd R6d_sensor = Eigen::MatrixXd::Zero(6,6);
@@ -312,7 +312,7 @@ int main() {
 			if(ol_fc_buffer == 0)
 			{
 				pos_task.setKpf(1.0);
-				pos_task.setKif(1.5);
+				pos_task.setKif(0.7);
 				pos_task.setKvf(20.0);
 				// pos_task.desired_force = Eigen::Vector3d(0,0,-10);
 				pos_task.desired_force = 10.0*localz;
@@ -335,7 +335,7 @@ int main() {
 		{
 			Eigen::Vector3d localz = ori_task.current_orientation.block<3,1>(0,2);
 			pos_task.setForceAxis(localz);
-			pos_task.desired_force = (10.0 + 2.0*sin(2*M_PI*0.25*time))*localz;
+			pos_task.desired_force = (10.0 + 2.0*sin(2*M_PI*0.3*time))*localz;
 			// if(controller_counter > 13000)
 			// {
 				// pos_task.desired_force = 8.0*localz;
@@ -349,7 +349,7 @@ int main() {
 			{
 				// first transform the forces and moments to the resolving point
 				Eigen::MatrixXd f_transform = Eigen::MatrixXd::Identity(6,6);
-				f_transform.block<3,3>(3,0) = Model::ModelInterface::CrossProductOperator(-force_resolving_point);
+				f_transform.block<3,3>(3,0) = Sai2Model::CrossProductOperator(-force_resolving_point);
 				sensed_force_moment = f_transform * (sensed_force_moment - sensor_bias);
 				// then rotate to global frame
 				Eigen::MatrixXd R6d_sensor = Eigen::MatrixXd::Zero(6,6);

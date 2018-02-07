@@ -33,6 +33,21 @@ find_package(SAI2-COMMON REQUIRED)
 include_directories(${SAI2-COMMON_INCLUDE_DIRS})
 add_definitions(${SAI2-COMMON_DEFINITIONS})
 
+# - SAI2-MODEL
+find_package(SAI2-MODEL REQUIRED)
+include_directories(${SAI2-MODEL_INCLUDE_DIRS})
+add_definitions(${SAI2-MODEL_DEFINITIONS})
+
+# - SAI2-GRAPHICS
+find_package(SAI2-GRAPHICS REQUIRED)
+include_directories(${SAI2-GRAPHICS_INCLUDE_DIRS})
+add_definitions(${SAI2-GRAPHICS_DEFINITIONS})
+
+# - SAI2-URDF
+find_package(SAI2-URDF REQUIRED)
+include_directories(${SAI2-URDF_INCLUDE_DIRS})
+add_definitions(${SAI2-URDF_DEFINITIONS})
+
 # - glfw3
 find_package(glfw3 QUIET)
 find_library(GLFW_LIBRARY glfw)
@@ -66,6 +81,10 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 set(IIWA_FORCECONTROL_COMMON_LIBRARIES
 	${CHAI3D_LIBARIES}
 	${SAI2-COMMON_LIBRARIES}
+	${SAI2-MODEL_LIBRARIES}
+	${SAI2-GRAPHICS_LIBRARIES}
+	${SAI2-URDF_LIBRARIES}
+	${SAI2-SIMULATION_LIBRARIES}
 	${HIREDIS_LIBRARY}
 	${GLFW_LIBRARY}
 	${JSONCPP_LIBRARY}
@@ -84,4 +103,4 @@ add_subdirectory(00-passivity_tests)
 # add_subdirectory(02-demo_cs225a)
 # add_subdirectory(03-multi_contact_validation)
 # add_subdirectory(04-passivity_demo)
-add_subdirectory(05-contact_primitives)
+# add_subdirectory(05-contact_primitives)

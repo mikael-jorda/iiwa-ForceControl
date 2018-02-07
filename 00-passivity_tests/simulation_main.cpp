@@ -2,9 +2,8 @@
 // with physics and contact in a Dynamics3D virtual world. A graphics model of it is also shown using 
 // Chai3D.
 
-#include "model/ModelInterface.h"
-#include "simulation/SimulationInterface.h"
-#include "simulation/Sai2Simulation.h"
+#include "Sai2Model.h"
+#include "Sai2Simulation.h"
 #include "force_sensor/ForceSensorSim.h"
 #include "redis/RedisClient.h"
 #include "timer/LoopTimer.h"
@@ -58,10 +57,10 @@ int main() {
 	signal(SIGINT, &sighandler);
 
 	// load simulation world
-	auto sim = new Simulation::Sai2Simulation(world_file, Simulation::urdf, false);
+	auto sim = new Simulation::Sai2Simulation(world_file, false);
 
 	// load robots
-	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
+	auto robot = new Sai2Model::Sai2Model(robot_file, false);
 	int dof = robot->dof();
 	Eigen::VectorXd robot_torques = Eigen::VectorXd::Zero(dof);
 

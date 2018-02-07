@@ -2,9 +2,9 @@
 // with physics and contact in a Dynamics3D virtual world. A graphics model of it is also shown using 
 // Chai3D.
 
-#include "model/ModelInterface.h"
-#include "simulation/SimulationInterface.h"
-#include "graphics/GraphicsInterface.h"
+#include "Sai2Model.h"
+#include "Sai2Simulation.h"
+#include "Sai2Graphics.h"
 #include "redis/RedisClient.h"
 
 #include <GLFW/glfw3.h> //must be loaded after loading opengl/glew
@@ -57,12 +57,12 @@ int main() {
 	redis_client.serverIs(info);
 
 	// load graphics scene
-	auto graphics = new Graphics::GraphicsInterface(world_file, Graphics::chai, Graphics::urdf, true);
+	auto graphics = new Sai2Graphics::Sai2Graphics(world_file, false);
 	Eigen::Vector3d camera_pos, camera_lookat, camera_vertical;
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 
 	// load robots
-	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
+	auto robot = new Sai2Model::Sai2Model(robot_file, false);
 	// auto robot = new Model::ModelInterface(robot_file, Model::rbdl_kuka, Model::urdf, false);
 
 	/*------- Set up visualization -------*/
