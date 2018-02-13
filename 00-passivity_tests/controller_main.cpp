@@ -7,9 +7,10 @@
 #include <iostream>
 #include <string>
 
-#include "tasks/OrientationTask.h"
+// #include "tasks/OrientationTask.h"
 // #include "tasks/HybridPositionTask.h"
-#include "tasks/TestTask.h"
+// #include "tasks/TestTask.h"
+#include "tasks/PosOriTask.h"
 
 #include <signal.h>
 bool runloop = true;
@@ -83,7 +84,6 @@ int main() {
 	signal(SIGINT, &sighandler);
 
 	// load robots
-	// auto robot = new Model::ModelInterface(robot_file, Model::rbdl_kuka, Model::urdf, false);
 	auto robot = new Sai2Model::Sai2Model(robot_file, false);
 
 	// read from Redis
@@ -104,31 +104,33 @@ int main() {
 
 	double joint_kv = 1.0;
 
-	// Orientation task
-	OrientationTask ori_task = OrientationTask(dof);
-	ori_task.link_name = "link6";
-	ori_task.setKp(600.0);
-	ori_task.setKv(50.0);
+	// position and orientation task
+	const string control_link = "link6";
+	Eigen::Affine3d control_frame = Eigen::Affine3d::Identity();
+	control_frame.translation() = Eigen::Vector3d(0.0, 0.0, 0.12);
+	Eigen::Affine3d sensor_frame = Eigen::Affine3d::Identity();
+	sensor_frame.translation() = Eigen::Vector3d(0.0, 0.0, 0.02);
 
-	Eigen::VectorXd ori_task_torques(dof);
+	auto posori_task = new PosOriTask(robot, "link6", control_frame, sensor_frame);
+
+	posori_task->_kp_ori = 600.0;
+	posori_task->_kv_ori = 50.0;
+	posori_task->_kp_pos = 150.0;
+	posori_task->_kv_pos = 22.0;
+
+	Eigen::VectorXd posori_task_torques(dof);
+
+	// ------------  unnecessary
 	Eigen::Matrix3d initial_orientation;
-	robot->rotation(initial_orientation, ori_task.link_name);
-	ori_task.desired_orientation = initial_orientation;
-	ori_task.desired_orientation = initial_orientation;
+	robot->rotation(initial_orientation, control_link);
+	posori_task->_current_orientation = initial_orientation;
+	posori_task->_desired_orientation = initial_orientation;
 
-	// operational space position task
-	TestTask pos_task =	TestTask(dof);
-	pos_task.link_name = "link5";
-	pos_task.pos_in_link = Eigen::Vector3d(0.0, 0.0, 0.0);
-	pos_task.setKp(150.0);
-	pos_task.setKv(15.0);
-	pos_task.useVelocitySaturation(true, Eigen::Vector3d(0.2, 0.2, 0.2));
-
-	Eigen::VectorXd pos_task_torques(dof);
 	Eigen::Vector3d initial_position;
-	robot->position(initial_position,pos_task.link_name,pos_task.pos_in_link);
-	pos_task.current_position = initial_position;
-	pos_task.desired_position = initial_position;
+	robot->position(initial_position, posori_task->_link_name, posori_task->_T_link_control.translation());
+	posori_task->_current_position = initial_position;
+	posori_task->_desired_position = initial_position;
+	// ------------------------------
 
 	// create a loop timer
 	double control_freq = 1000;
@@ -139,14 +141,12 @@ int main() {
 	timer.initializeTimer(1000000); // 1 ms pause before starting loop
 
 	Eigen::VectorXd sensed_force_moment = Eigen::VectorXd::Zero(6);
-	Eigen::Vector3d sensed_force, sensed_moment;
+	// Eigen::Vector3d sensed_force, sensed_moment;
 	Eigen::VectorXd sensor_bias = Eigen::VectorXd::Zero(6);
 
 	const int zero_fs_counter = 3000;
 	int zero_fs_buffer = zero_fs_counter + 2000;
 	int ol_fc_buffer = 4000;
-
-	Eigen::Vector3d force_resolving_point = Eigen::Vector3d(0.0,0.0,0.10);
 
 	state = INITIAL;
 
@@ -164,29 +164,22 @@ int main() {
 		// update the model 20 times slower
 		if(controller_counter%20 == 0)
 		{
-			robot->updateModel();
+			robot->updateKinematics();
 			if(!simulation)
 			{
 				redis_client.getEigenMatrixDerived(MASSMATRIX_KEY, robot->_M);
 				robot->_M_inv = robot->_M.inverse();
 			}
+			else
+			{
+				robot->updateDynamics();
+			}
 
-			/////////////////////////// update jacobians, mass matrices and nullspaces
+			// ----------- tasks
 			N_prec = Eigen::MatrixXd::Identity(dof,dof);
 
-			// orientation controller
-			robot->Jw(ori_task.jacobian, ori_task.link_name);
-			ori_task.projected_jacobian = ori_task.jacobian * N_prec;
-			robot->operationalSpaceMatrices(ori_task.Lambda, ori_task.Jbar, ori_task.N,
-									ori_task.projected_jacobian, N_prec);
-			N_prec = ori_task.N;
-
-			// position controller 
-			robot->Jv(pos_task.jacobian,pos_task.link_name,pos_task.pos_in_link);
-			pos_task.projected_jacobian = pos_task.jacobian * N_prec;
-			robot->operationalSpaceMatrices(pos_task.Lambda, pos_task.Jbar, pos_task.N,
-									pos_task.projected_jacobian, N_prec);
-			N_prec = pos_task.N;
+			posori_task->updateTaskModel(N_prec);
+			N_prec = posori_task->_N;
 		}
 
 		////////////////////////////// Compute joint torques
@@ -194,31 +187,27 @@ int main() {
 
 		//---- orientation controller
 		// update current orientation
-		robot->rotation(ori_task.current_orientation, ori_task.link_name);
-		ori_task.current_angular_velocity = ori_task.projected_jacobian*robot->_dq;
-
-		// compute torques
-		ori_task.computeTorques(ori_task_torques);
-
+		robot->rotation(posori_task->_current_orientation, posori_task->_link_name);
+		robot->angularVelocity(posori_task->_current_angular_velocity, posori_task->_link_name);
 
 		//---- position controller 
-		// update current position and sensor force
-		robot->position(pos_task.current_position, pos_task.link_name, pos_task.pos_in_link);
-		pos_task.current_velocity = pos_task.projected_jacobian * robot->_dq;
+		// update current position and velocity
+		robot->position(posori_task->_current_position, posori_task->_link_name, posori_task->_T_link_control.translation());
+		robot->linearVelocity(posori_task->_current_linear_velocity, posori_task->_link_name, posori_task->_T_link_control.translation());
 
-		// std::cout << "desired z position : " << pos_task.desired_position(2) << std::endl;
-		// std::cout << "z position : " << pos_task.current_position(2) << std::endl;
+		// std::cout << "desired z position : " << posori_task->desired_position(2) << std::endl;
+		// std::cout << "z position : " << posori_task->current_position(2) << std::endl;
 
 		if(state == INITIAL)
 		{
-			pos_task.desired_position += Eigen::Vector3d(0, 0, -0.25);
 			state = MOVE_ABOVE_CONTACT;
 			std::cout << "Move above contact\n" << std::endl;
 		}
 
 		if(state == MOVE_ABOVE_CONTACT)
 		{
-			if(pos_task.current_position(2) < 1.01*pos_task.desired_position(2))
+			posori_task->_desired_position += Eigen::Vector3d(0, 0, -0.00015);
+			if(posori_task->_current_position(2) < initial_position(2) - 0.25)
 			{
 				if(simulation)
 				{
@@ -257,149 +246,93 @@ int main() {
 		else if(state == GO_TO_CONTACT)
 		{
 			// rotate forces to world frame and unbias, and set to controller
+			sensed_force_moment -= sensor_bias;
 			if(simulation)
 			{
-				sensed_force_moment = sensed_force_moment - sensor_bias;
+				sensed_force_moment = -sensed_force_moment;
 			}
-			else
-			{
-				Eigen::MatrixXd R6d_sensor = Eigen::MatrixXd::Zero(6,6);
-				R6d_sensor.block<3,3>(0,0) = ori_task.current_orientation;
-				R6d_sensor.block<3,3>(3,3) = ori_task.current_orientation;
-				sensed_force_moment = R6d_sensor * (sensed_force_moment - sensor_bias);
-			}
+			posori_task->updateSensedForceAndMoment(-sensed_force_moment.head(3), -sensed_force_moment.tail(3));
+
 			if(controller_counter % 25 == 0)
 			{
-				pos_task.desired_position += Eigen::Vector3d(0,0,-0.00050);
+				posori_task->_desired_position += Eigen::Vector3d(0,0,-0.00050);
 			}
 			if(sensed_force_moment(2) < -5)
 			{
 				state = OL_FORCE_CONTROL;
-				pos_task.setForceAxis(Eigen::Vector3d(0,0,1));
-				pos_task.desired_force = Eigen::Vector3d(0,0,-7);
+				posori_task->setForceAxis(Eigen::Vector3d(0,0,1));
+				posori_task->_desired_force = Eigen::Vector3d(0,0,-7);
 				std::cout << "Open loop force control\n" << std::endl;
 			}
 		}
 
 		else if(state == OL_FORCE_CONTROL)
 		{
-			Eigen::Vector3d localz = ori_task.current_orientation.block<3,1>(0,2);
-			pos_task.setForceAxis(localz);
-			pos_task.desired_force = 7.0*localz;
-			// rotate forces to world frame and unbias, and set to controller
+			sensed_force_moment -= sensor_bias;
 			if(simulation)
 			{
-				sensed_force_moment = sensed_force_moment - sensor_bias;
+				sensed_force_moment = -sensed_force_moment;
 			}
-			else
-			{
-				// first transform the forces and moments to the resolving point
-				Eigen::MatrixXd f_transform = Eigen::MatrixXd::Identity(6,6);
-				f_transform.block<3,3>(3,0) = Sai2Model::CrossProductOperator(-force_resolving_point);
-				sensed_force_moment = f_transform * (sensed_force_moment - sensor_bias);
-				// then rotate to global frame
-				Eigen::MatrixXd R6d_sensor = Eigen::MatrixXd::Zero(6,6);
-				R6d_sensor.block<3,3>(0,0) = ori_task.current_orientation;
-				R6d_sensor.block<3,3>(3,3) = ori_task.current_orientation;
-				sensed_force_moment = R6d_sensor * sensed_force_moment;
-			}				
+			posori_task->updateSensedForceAndMoment(-sensed_force_moment.head(3), -sensed_force_moment.tail(3));
+			
+			posori_task->setForceAxis(Eigen::Vector3d(0.0,0.0,1.0));
 
-			// Eigen::Matrix3d k_surface = Eigen::Matrix3d::Identity();
-			// k_surface(0,0) = 2.0;
-			// k_surface(1,1) = 1.4;
-			// k_surface(2,2) = 0.9;
-			// ori_task_torques = ori_task.projected_jacobian.transpose()* (-k_surface*sensed_force_moment.tail(3) - 10.0*ori_task.current_angular_velocity);
+			Eigen::Vector3d localz = posori_task->_current_orientation.block<3,1>(0,2);
+
 			if(ol_fc_buffer == 0)
 			{
-				pos_task.setKpf(1.0);
-				pos_task.setKif(0.7);
-				pos_task.setKvf(20.0);
-				// pos_task.desired_force = Eigen::Vector3d(0,0,-10);
-				pos_task.desired_force = 10.0*localz;
-				pos_task.setClosedLoopForceControl(control_freq);
-				pos_task.enablePassivity();
-				state = CL_FORCE_CONTROL;
-				std::cout << "Closed loop force control\n" << std::endl;
+				posori_task->_kp_force = 1.0;
+				posori_task->_ki_force = 0.7;
+				posori_task->_kv_force = 20.0;
+				posori_task->_desired_force = 10.0*localz;
+				// posori_task->setClosedLoopForceControl();
+
+				// state = CL_FORCE_CONTROL;
+				// std::cout << "Closed loop force control\n" << std::endl;
 			}
 			ol_fc_buffer--;
-			// if(controller_counter % 500 == 0)
-			// {
-				// std::cout << "force related forces : " << pos_task.force_related_forces.transpose() << std::endl; 
-				// std::cout << "position related forces : " << pos_task.position_related_forces.transpose() << std::endl; 
-				// std::cout << "position task torques : " << pos_task_torques.transpose() << std::endl; 
-			// }
+
 		}
 
 
 		else if(state == CL_FORCE_CONTROL)
 		{
-			Eigen::Vector3d localz = ori_task.current_orientation.block<3,1>(0,2);
-			pos_task.setForceAxis(localz);
-			pos_task.desired_force = (10.0 + 2.0*sin(2*M_PI*0.3*time))*localz;
-			// if(controller_counter > 13000)
-			// {
-				// pos_task.desired_force = 8.0*localz;
-			// }
-			// rotate forces to world frame and unbias, and set to controller
+			sensed_force_moment -= sensor_bias;
 			if(simulation)
 			{
-				sensed_force_moment = sensed_force_moment - sensor_bias;
+				sensed_force_moment = -sensed_force_moment;
 			}
-			else
-			{
-				// first transform the forces and moments to the resolving point
-				Eigen::MatrixXd f_transform = Eigen::MatrixXd::Identity(6,6);
-				f_transform.block<3,3>(3,0) = Sai2Model::CrossProductOperator(-force_resolving_point);
-				sensed_force_moment = f_transform * (sensed_force_moment - sensor_bias);
-				// then rotate to global frame
-				Eigen::MatrixXd R6d_sensor = Eigen::MatrixXd::Zero(6,6);
-				R6d_sensor.block<3,3>(0,0) = ori_task.current_orientation;
-				R6d_sensor.block<3,3>(3,3) = ori_task.current_orientation;
-				sensed_force_moment = R6d_sensor * sensed_force_moment;
-			}
-			pos_task.sensed_force = sensed_force_moment.head(3);
+			posori_task->updateSensedForceAndMoment(-sensed_force_moment.head(3), -sensed_force_moment.tail(3));
 
-			// Eigen::Matrix3d k_surface = Eigen::Matrix3d::Identity();
-			// k_surface(0,0) = 2.0;
-			// k_surface(1,1) = 1.4;
-			// k_surface(2,2) = 0.9;
-			// ori_task_torques = ori_task.projected_jacobian.transpose()* (-k_surface*sensed_force_moment.tail(3) - 10.0*ori_task.current_angular_velocity);
+			Eigen::Vector3d localz = posori_task->_current_orientation.block<3,1>(0,2);
+			// if(controller_counter > 13000)
+			// {
+				// posori_task->desired_force = Eigen::Vector3d(0.0,0.0,8.0);
+			// }
 
 			if(controller_counter % 1000 == 0)
 			{
 				std::cout << "contoller counter : " << controller_counter << std::endl;
-				std::cout << "Rc : " << pos_task.Rc_ << std::endl;
-				std::cout << "PO : " << pos_task.PO_ << std::endl;
+				std::cout << "Rc force : " << posori_task->_Rc_force << std::endl;
+				std::cout << "PO force : " << posori_task->_PO_force << std::endl;
 				std::cout << std::endl;
 			}
 		}
 
-		if(controller_counter % 1000 == 1)
-		{
-			// std::cout << "end effector orientation : \n" << ori_task.current_orientation << std::endl;
-			// std::cout << "sensor force in sensor frame : \n" << sensed_force_moment.head(3).transpose() << std::endl;
-			// std::cout << "sensor moments in sensor frame : \n" << sensed_force_moment.tail(3).transpose() << std::endl;
-			// std::cout << "\nsensor force in world frame : \n" << sensed_force_moment.head(3).transpose() << std::endl;
-			// std::cout << "power input " << pos_task.current_power_input_ << std::endl;
-			// std::cout << "power output " << pos_task.current_power_output_ << std::endl;
-			// std::cout << "vc " << pos_task.force_feedback_control_signal.transpose() << std::endl;
-		}
-
 		// compute joint torques
-		pos_task.computeTorques(pos_task_torques);
+		posori_task->computeTorques(posori_task_torques);
 
 		//----- Joint nullspace damping
 		joint_task_torques = robot->_M*( - joint_kv*robot->_dq);
 
 		//------ Final torques
-		command_torques = pos_task_torques + ori_task_torques + N_prec.transpose()*joint_task_torques;
+		command_torques = posori_task_torques + N_prec.transpose()*joint_task_torques;
 
 		redis_client.setEigenMatrixDerived(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
-
-		redis_client.setEigenMatrixDerived(EE_DESIRED_FORCE_LOGGED_KEY, pos_task.desired_force);
+		redis_client.setEigenMatrixDerived(EE_DESIRED_FORCE_LOGGED_KEY, posori_task->_desired_force);
 		redis_client.setEigenMatrixDerived(EE_SENSED_FORCE_LOGGED_KEY, sensed_force_moment.head(3));
-		redis_client.setCommandIs(RC_KEY,std::to_string(pos_task.Rc_));
+		redis_client.setCommandIs(RC_KEY,std::to_string(posori_task->_Rc_force));
 
 		controller_counter++;
 

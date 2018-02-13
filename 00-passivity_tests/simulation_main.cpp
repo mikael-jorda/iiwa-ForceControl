@@ -65,7 +65,9 @@ int main() {
 	Eigen::VectorXd robot_torques = Eigen::VectorXd::Zero(dof);
 
 	// create force sensor
-	ForceSensorSim* force_sensor = new ForceSensorSim(robot_name, "link6", Eigen::Affine3d::Identity(), robot);
+	Eigen::Affine3d sensor_frame = Eigen::Affine3d::Identity();
+	sensor_frame.translation() = Eigen::Vector3d(0.0, 0.0, 0.02);
+	ForceSensorSim* force_sensor = new ForceSensorSim(robot_name, "link6", sensor_frame, robot);
 	Eigen::Vector3d sensed_force, sensed_moment;
 	Eigen::VectorXd sensed_forces_moments(6);
 
@@ -128,8 +130,8 @@ int main() {
 
 		// update force sensor and display
 		force_sensor->update(sim);
-		force_sensor->getForce(sensed_force);
-		force_sensor->getMoment(sensed_moment);
+		force_sensor->getForceLocalFrame(sensed_force);
+		force_sensor->getMomentLocalFrame(sensed_moment);
 		sensed_forces_moments << sensed_force, sensed_moment;
 
 		// write joint kinematics to redis

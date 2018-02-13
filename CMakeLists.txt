@@ -6,6 +6,7 @@ SET(CMAKE_CXX_FLAGS "-std=c++11")
 set (IIWA_FORCECONTROL_COMMON_SOURCE
 	# ${PROJECT_SOURCE_DIR}/src/redis/RedisClient.h
 	${PROJECT_SOURCE_DIR}/src/timer/LoopTimer.cpp
+	${PROJECT_SOURCE_DIR}/src/tasks/PosOriTask.cpp
 	# ${PROJECT_SOURCE_DIR}/src/tasks/OrientationTask.h
 	# ${PROJECT_SOURCE_DIR}/src/tasks/HybridPositionTask.h
 	)
