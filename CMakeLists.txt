@@ -7,6 +7,7 @@ SET(CMAKE_BUILD_TYPE "Debug")
 set (IIWA_FORCECONTROL_COMMON_SOURCE
 	# ${PROJECT_SOURCE_DIR}/src/redis/RedisClient.h
 	${PROJECT_SOURCE_DIR}/src/timer/LoopTimer.cpp
+	${PROJECT_SOURCE_DIR}/src/tasks/PosOriTask.cpp
 	# ${PROJECT_SOURCE_DIR}/src/tasks/OrientationTask.h
 	# ${PROJECT_SOURCE_DIR}/src/tasks/HybridPositionTask.h
 	)
@@ -34,6 +35,21 @@ find_package(SAI2-COMMON REQUIRED)
 include_directories(${SAI2-COMMON_INCLUDE_DIRS})
 add_definitions(${SAI2-COMMON_DEFINITIONS})
 
+# - SAI2-MODEL
+find_package(SAI2-MODEL REQUIRED)
+include_directories(${SAI2-MODEL_INCLUDE_DIRS})
+add_definitions(${SAI2-MODEL_DEFINITIONS})
+
+# - SAI2-GRAPHICS
+find_package(SAI2-GRAPHICS REQUIRED)
+include_directories(${SAI2-GRAPHICS_INCLUDE_DIRS})
+add_definitions(${SAI2-GRAPHICS_DEFINITIONS})
+
+# - SAI2-URDF
+find_package(SAI2-URDF REQUIRED)
+include_directories(${SAI2-URDF_INCLUDE_DIRS})
+add_definitions(${SAI2-URDF_DEFINITIONS})
+
 # - glfw3
 find_package(glfw3 QUIET)
 find_library(GLFW_LIBRARY glfw)
@@ -53,12 +69,24 @@ elseif (CMAKE_SYSTEM_NAME MATCHES Linux)
 endif ()
 
 # - eigen3
-find_package(Eigen3 REQUIRED)
+set(EIGEN3_INCLUDE_DIR $ENV{EIGEN3_INCLUDE_DIR})
+if(NOT EIGEN3_INCLUDE_DIR)
+	find_package(Eigen3 QUIET)
+	# TODO: Find automatic way to find for Ubuntu 14.04
+	if(NOT EIGEN3_INCLUDE_DIR)
+		set(EIGEN3_INCLUDE_DIR /usr/include/eigen3)
+	endif()
+endif()
 include_directories(${EIGEN3_INCLUDE_DIR})
 
+# set common dependencies
 set(IIWA_FORCECONTROL_COMMON_LIBRARIES
 	${CHAI3D_LIBARIES}
 	${SAI2-COMMON_LIBRARIES}
+	${SAI2-MODEL_LIBRARIES}
+	${SAI2-GRAPHICS_LIBRARIES}
+	${SAI2-URDF_LIBRARIES}
+	${SAI2-SIMULATION_LIBRARIES}
 	${HIREDIS_LIBRARY}
 	${GLFW_LIBRARY}
 	${JSONCPP_LIBRARY}
@@ -76,5 +104,6 @@ set (IIWA_FORCECONTROL_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 # add_subdirectory(00-test_simulation_time)
 # add_subdirectory(01-force_tracking)
 # add_subdirectory(02-demo_cs225a)
-add_subdirectory(03-multi_contact_validation)
+# add_subdirectory(03-multi_contact_validation)
 # add_subdirectory(04-passivity_demo)
+add_subdirectory(06-contact_observer)
