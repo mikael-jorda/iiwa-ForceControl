@@ -11,6 +11,7 @@
 // #include "tasks/HybridPositionTask.h"
 // #include "tasks/TestTask.h"
 #include "tasks/PosOriTask.h"
+#include "momentum_observer/MomentumObserver.h"
 
 #include <signal.h>
 bool runloop = true;
@@ -44,6 +45,9 @@ const std::string MASSMATRIX_KEY = "sai2::KUKA_IIWA::sensors::massmatrix";
 const std::string EE_DESIRED_FORCE_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::desired_force";
 const std::string EE_SENSED_FORCE_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::sensed_force";
 const std::string RC_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::Rc";
+
+const std::string EE_POS_KEY = "sai2::iiwaForceControl::iiwaBot::data_log::position";
+const std::string EE_DPOS_KEY = "sai2::iiwaForceControl::iiwaBot::data_log::_desired_position";
 
 void sighandler(int sig)
 { runloop = false; }
@@ -86,6 +90,7 @@ int main() {
 	redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
 	redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot->_dq);
 
+
 	////////////////////////////////////////////////
 	///    Prepare the different controllers   /////
 	////////////////////////////////////////////////
@@ -98,6 +103,10 @@ int main() {
 	// Joint control
 	Eigen::VectorXd joint_task_desired_position(dof), joint_task_torques(dof);
 	Eigen::VectorXd anti_grav_comp(dof), gravity_vector(dof);
+	joint_task_desired_position.setZero();
+	joint_task_torques.setZero();
+	anti_grav_comp.setZero();
+	gravity_vector.setZero();
 
 	double joint_kv = 5.0;
 
@@ -129,6 +138,12 @@ int main() {
 
 	Eigen::VectorXd sensed_force_moment = Eigen::VectorXd::Zero(6);
 	Eigen::VectorXd sensor_bias = Eigen::VectorXd::Zero(6);
+
+	// prepare momentum observer
+	MomentumObserver* mobs = new MomentumObserver(robot, 1.0/control_freq, true);
+	Eigen::VectorXd r(dof);
+	r.setZero();
+
 
 	state = INITIAL;
 
@@ -164,6 +179,11 @@ int main() {
 			N_prec = posori_task->_N;
 		}
 
+		robot->gravityVector(gravity_vector);
+
+		// update momentum observer
+		// mobs->update(r, command_torques);
+
 		////////////////////////////// Compute joint torques
 		double time = controller_counter/control_freq;
 
@@ -179,20 +199,23 @@ int main() {
 
 		if(state == INITIAL)
 		{
-			posori_task->_desired_position += Eigen::Vector3d(0.1,0.0,0.0);
-			state = GC_STOP;
-			cout << "stop nulspace gavity compensation\n" << endl;
+			if(controller_counter > 1000)
+			{
+				posori_task->_desired_position += Eigen::Vector3d(0.1,0.0,0.0);
+				state = GC_STOP;
+				cout << "stop nulspace gavity compensation\n" << endl;
+			}
 		}
 
-		if(state == GC_STOP)
+		else if(state == GC_STOP)
 		{
-			robot->gravityVector(gravity_vector);
 			anti_grav_comp = N_prec.transpose() * gravity_vector;
 			// cout << gravity_vector.transpose() << endl;
 		}
 
 		// compute joint torques
 		posori_task->computeTorques(posori_task_torques);
+		posori_task_torques -= posori_task->_projected_jacobian.transpose() * posori_task->_Jbar.transpose() * r;
 
 		//----- Joint nullspace damping
 		joint_task_torques = robot->_M*( - joint_kv*robot->_dq);
@@ -200,11 +223,21 @@ int main() {
 		//------ Final torques
 		command_torques = posori_task_torques + N_prec.transpose()*joint_task_torques - anti_grav_comp;
 
+		// command_torques -= r;
+
 		redis_client.setEigenMatrixDerived(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
-		redis_client.setEigenMatrixDerived(EE_DESIRED_FORCE_LOGGED_KEY, posori_task->_desired_force);
-		redis_client.setEigenMatrixDerived(EE_SENSED_FORCE_LOGGED_KEY, sensed_force_moment.head(3));
-		redis_client.setCommandIs(RC_KEY,std::to_string(posori_task->_Rc_force));
+		// redis_client.setEigenMatrixDerived(EE_DESIRED_FORCE_LOGGED_KEY, posori_task->_desired_force);
+		// redis_client.setEigenMatrixDerived(EE_SENSED_FORCE_LOGGED_KEY, sensed_force_moment.head(3));
+		// redis_client.setCommandIs(RC_KEY,std::to_string(posori_task->_Rc_force));
+
+		redis_client.setEigenMatrixDerived(EE_POS_KEY, posori_task->_current_position);
+		redis_client.setEigenMatrixDerived(EE_DPOS_KEY, posori_task->_desired_position);
+
+		if(controller_counter % 500 == 0)
+		{
+			cout << "momentum observer : " << r.transpose() << endl; 
+		}
 
 		controller_counter++;
 
