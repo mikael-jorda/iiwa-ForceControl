@@ -182,7 +182,7 @@ int main() {
 		robot->gravityVector(gravity_vector);
 
 		// update momentum observer
-		// mobs->update(r, command_torques);
+		mobs->update(r, command_torques);
 
 		////////////////////////////// Compute joint torques
 		double time = controller_counter/control_freq;
