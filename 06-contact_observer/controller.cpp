@@ -48,6 +48,7 @@ const std::string RC_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_lo
 
 const std::string EE_POS_KEY = "sai2::iiwaForceControl::iiwaBot::data_log::position";
 const std::string EE_DPOS_KEY = "sai2::iiwaForceControl::iiwaBot::data_log::_desired_position";
+const std::string EE_MOMENTUM_OBSERVER_KEY = "sai2::iiwaForceControl::iiwaBot::data_log::r";
 
 void sighandler(int sig)
 { runloop = false; }
@@ -108,7 +109,9 @@ int main() {
 	anti_grav_comp.setZero();
 	gravity_vector.setZero();
 
-	double joint_kv = 5.0;
+	double joint_kv = 1.0;
+
+	joint_task_desired_position = robot->_q;
 
 	// position and orientation task
 	const string control_link = "link6";
@@ -119,14 +122,18 @@ int main() {
 
 	auto posori_task = new PosOriTask(robot, "link6", control_frame, sensor_frame);
 
-	posori_task->_kp_ori = 600.0;
+	posori_task->_kp_ori = 20.0;
 	// posori_task->_kp_ori = 0.0;
-	posori_task->_kv_ori = 50.0;
-	posori_task->_kp_pos = 150.0;
+	posori_task->_kv_ori = 7.0;
+	posori_task->_kp_pos = 20.0;
 	// posori_task->_kp_pos = 0.0;
-	posori_task->_kv_pos = 22.0;
+	posori_task->_kv_pos = 7.0;
 
 	Eigen::VectorXd posori_task_torques(dof);
+
+	Eigen::Vector3d initial_position = posori_task->_current_position;
+
+	std::cout << "initial position : " << initial_position.transpose() << std::endl;
 
 	// create a loop timer
 	double control_freq = 1000;
@@ -144,6 +151,10 @@ int main() {
 	Eigen::VectorXd r(dof);
 	r.setZero();
 
+	Eigen::MatrixXd Lambda(6,6);
+	Eigen::MatrixXd J(6,dof);
+	robot->J_0(J, control_link, control_frame.translation());
+	robot->taskInertiaMatrix(Lambda, J);
 
 	state = INITIAL;
 
@@ -164,8 +175,9 @@ int main() {
 			robot->updateKinematics();
 			if(!simulation)
 			{
-				redis_client.getEigenMatrixDerived(MASSMATRIX_KEY, robot->_M);
-				robot->_M_inv = robot->_M.inverse();
+				// redis_client.getEigenMatrixDerived(MASSMATRIX_KEY, robot->_M);
+				// robot->_M_inv = robot->_M.inverse();
+				robot->updateDynamics();
 			}
 			else
 			{
@@ -197,14 +209,19 @@ int main() {
 		robot->position(posori_task->_current_position, posori_task->_link_name, posori_task->_T_link_control.translation());
 		robot->linearVelocity(posori_task->_current_linear_velocity, posori_task->_link_name, posori_task->_T_link_control.translation());
 
+		double ampl = 0.1;
+		double freq = 0.25;
+
+		posori_task->_desired_position(0) = initial_position(0) + ampl * sin(2*M_PI*freq*time);
+
 		if(state == INITIAL)
 		{
-			if(controller_counter > 1000)
-			{
-				posori_task->_desired_position += Eigen::Vector3d(0.1,0.0,0.0);
-				state = GC_STOP;
-				cout << "stop nulspace gavity compensation\n" << endl;
-			}
+			// if(controller_counter > 1000)
+			// {
+				// posori_task->_desired_position += Eigen::Vector3d(0.1,0.0,0.0);
+				// state = GC_STOP;
+				// cout << "stop nulspace gavity compensation\n" << endl;
+			// }
 		}
 
 		else if(state == GC_STOP)
@@ -225,6 +242,11 @@ int main() {
 
 		// command_torques -= r;
 
+
+		// command_torques << 0,0,0,0,0,0,0;
+
+		// command_torques = robot->_M * (-20.0 * (robot->_q - joint_task_desired_position) - 8.0 * robot->_dq);
+
 		redis_client.setEigenMatrixDerived(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
 		// redis_client.setEigenMatrixDerived(EE_DESIRED_FORCE_LOGGED_KEY, posori_task->_desired_force);
@@ -233,10 +255,14 @@ int main() {
 
 		redis_client.setEigenMatrixDerived(EE_POS_KEY, posori_task->_current_position);
 		redis_client.setEigenMatrixDerived(EE_DPOS_KEY, posori_task->_desired_position);
+		redis_client.setEigenMatrixDerived(EE_MOMENTUM_OBSERVER_KEY, r);
 
 		if(controller_counter % 500 == 0)
 		{
 			cout << "momentum observer : " << r.transpose() << endl; 
+			cout << "momentum observer to task : " << (posori_task->_Jbar.transpose()*r).transpose() << endl; 
+			cout << endl;
+			// cout << "should be 0 : " << (robot->_M - robot->_M.transpose()).norm() << endl; 
 		}
 
 		controller_counter++;
