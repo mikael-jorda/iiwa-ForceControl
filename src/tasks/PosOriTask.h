@@ -231,6 +231,15 @@ public:
 	 */
 	void resetIntegratorsAngular();
 
+	void enablePassivity();
+	void disablePassivity();
+
+	void enableForcePassivity();
+	void disableForcePassivity();
+
+	void enableMomentPassivity();
+	void disableMomentPassivity();
+
 	//------------------------------------------------
 	// Attributes
 	//------------------------------------------------
@@ -284,7 +293,8 @@ public:
 	bool _closed_loop_moment_control;
 
 	// passivity related things
-	bool _passivity_enabled;
+	bool _force_passivity_enabled;
+	bool _moment_passivity_enabled;
 	double _Rc_force;
 	double _Rc_moment;
 	double _PO_force;

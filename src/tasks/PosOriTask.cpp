@@ -72,7 +72,8 @@ PosOriTask::PosOriTask(Sai2Model::Sai2Model* robot,
 	_closed_loop_moment_control = false;
 
 	// passivity
-	_passivity_enabled = true;
+	_force_passivity_enabled = true;
+	_moment_passivity_enabled = true;
 	_Rc_force = 1;
 	_Rc_moment = 1;
 	_PO_force = 0;
@@ -147,7 +148,7 @@ void PosOriTask::computeTorques(Eigen::VectorXd& task_joint_torques)
 		Eigen::Vector3d force_feedback_term = - _kp_force * (_sensed_force - _desired_force) - _ki_force * _integrated_force_error;
 
 		// run passivity observer and controller
-		if(_passivity_enabled)
+		if(_force_passivity_enabled)
 		{
 			// compute PO value
 			double tmp_Rc = _Rc_force;
@@ -180,7 +181,7 @@ void PosOriTask::computeTorques(Eigen::VectorXd& task_joint_torques)
 			if(_PO_force < 0)
 			{
 				// update RC value
-				_Rc_force = (_Rc_force + (1-2*atan(-0.1*_PO_force)/M_PI)*deltaf_square) / (1+deltaf_square);
+				_Rc_force = (_Rc_force + (1-2*atan(-_PO_force)/M_PI)*deltaf_square) / (1+deltaf_square);
 				
 				if(_Rc_force < 0) // should never happen
 				{
@@ -215,11 +216,12 @@ void PosOriTask::computeTorques(Eigen::VectorXd& task_joint_torques)
 
 	if(force_related_force.norm() > 0.001)
 	{
-		// eff_mass_force = (double) (force_related_force.transpose() * _Lambda.block(0,0,3,3) * force_related_force)/(force_related_force.norm());
-		// eff_mass_force = (double) (force_related_force.transpose() * _Lambda.inverse().block(0,0,3,3) * force_related_force)/(force_related_force.norm());
-		eff_mass_force = _Lambda(3,3);
+		eff_mass_force = (double) (force_related_force.transpose() * _Lambda.block(0,0,3,3) * force_related_force)/(force_related_force.transpose()*force_related_force);
 	}
+
 	// force_related_force = force_related_force / eff_mass_force; 
+
+	// force_related_force = _Lambda.inverse().block(0,0,6,3)
 
 
 	// moment related terms
@@ -232,7 +234,7 @@ void PosOriTask::computeTorques(Eigen::VectorXd& task_joint_torques)
 		Eigen::Vector3d moment_feedback_term = - _kp_moment * (_sensed_moment - _desired_moment) - _ki_moment * _integrated_moment_error;
 
 		// run passivity observer and controller
-		if(_passivity_enabled)
+		if(_moment_passivity_enabled)
 		{
 			// compute PO value
 			double tmp_Rc = _Rc_moment;
@@ -265,7 +267,7 @@ void PosOriTask::computeTorques(Eigen::VectorXd& task_joint_torques)
 			if(_PO_moment < 0)
 			{
 				// update RC value
-				_Rc_moment = (_Rc_moment + (1-2*atan(-0.1*_PO_moment)/M_PI)*deltaf_square) / (1+deltaf_square);
+				_Rc_moment = (_Rc_moment + (1-2*atan(-_PO_moment)/M_PI)*deltaf_square) / (1+deltaf_square);
 				
 				if(_Rc_moment < 0) // should never happen
 				{
@@ -301,9 +303,9 @@ void PosOriTask::computeTorques(Eigen::VectorXd& task_joint_torques)
 
 	if(moment_related_force.norm() > 0.001)
 	{
-		eff_mass_moment = (double) (moment_related_force.transpose() * _Lambda.block(0,0,3,3) * moment_related_force)/(moment_related_force.norm());
+		eff_mass_moment = (double) (moment_related_force.transpose() * _Lambda.block(3,3,3,3) * moment_related_force)/(moment_related_force.transpose()*moment_related_force);
 	}
-	moment_related_force /= eff_mass_moment; 
+	// moment_related_force /= eff_mass_moment; 
 
 	// linear motion related terms
 	// get curent position for P term
@@ -330,9 +332,25 @@ void PosOriTask::computeTorques(Eigen::VectorXd& task_joint_torques)
 
 
 	// compute task force
-	_task_force.head(3) = position_related_force + _Lambda.inverse().block(0,0,3,3) * force_related_force;
-	_task_force.tail(3) = orientation_related_force + moment_related_force;
-	_task_force = _Lambda*_task_force;
+	Eigen::VectorXd force_moment_contribution(6), position_orientation_contribution(6);
+	force_moment_contribution.head(3) = force_related_force;
+	force_moment_contribution.tail(3) = moment_related_force;
+
+	position_orientation_contribution.head(3) = position_related_force;
+	// position_orientation_contribution.head(3) = position_related_force + _sigma_position * _desired_force;
+	position_orientation_contribution.tail(3) = orientation_related_force;
+	// position_orientation_contribution.tail(3) = orientation_related_force + _sigma_orientation * _desired_moment;
+
+
+
+	// _task_force.head(3) = position_related_force; // + force_related_force;
+	// _task_force.tail(3) = orientation_related_force; // + moment_related_force;
+	// _task_force = _Lambda*_task_force;
+	// _task_force.head(3) += force_related_force;
+	// _task_force.tail(3) += moment_related_force;
+
+	// _task_force = _Lambda * (position_orientation_contribution + force_moment_contribution);
+	_task_force = _Lambda * position_orientation_contribution + force_moment_contribution;
 
 	// compute task torques
 	task_joint_torques = _projected_jacobian.transpose()*_task_force;
@@ -515,5 +533,58 @@ void PosOriTask::resetIntegratorsAngular()
 	_integrated_moment_error.setZero();
 }
 
+void PosOriTask::enablePassivity()
+{
+	_force_passivity_enabled = true;
+	_moment_passivity_enabled = true;
+	_PO_moment = 0;
+	_PO_force = 0;
+	_PO_buffer_moment.setZero(5);
+	_PO_buffer_force.setZero(5);
+	_Rc_moment = 1;
+	_Rc_force = 1;
+}
 
+void PosOriTask::disablePassivity()
+{
+	_force_passivity_enabled = false;
+	_moment_passivity_enabled = false;
+	_PO_moment = 0;
+	_PO_force = 0;
+	_PO_buffer_moment.setZero(5);
+	_PO_buffer_force.setZero(5);
+	_Rc_moment = 1;
+	_Rc_force = 1;	
+}
 
+void PosOriTask::enableForcePassivity()
+{
+	_force_passivity_enabled = true;
+	_PO_force = 0;
+	_PO_buffer_force.setZero(5);
+	_Rc_force = 1;
+}
+
+void PosOriTask::disableForcePassivity()
+{
+	_force_passivity_enabled = false;
+	_PO_force = 0;
+	_PO_buffer_force.setZero(5);
+	_Rc_force = 1;	
+}
+
+void PosOriTask::enableMomentPassivity()
+{
+	_moment_passivity_enabled = true;
+	_PO_moment = 0;
+	_PO_buffer_moment.setZero(5);
+	_Rc_moment = 1;
+}
+
+void PosOriTask::disableMomentPassivity()
+{
+	_moment_passivity_enabled = false;
+	_PO_moment = 0;
+	_PO_buffer_moment.setZero(5);
+	_Rc_moment = 1;
+}
