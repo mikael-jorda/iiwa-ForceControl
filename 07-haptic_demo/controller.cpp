@@ -25,8 +25,8 @@ const std::string robot_name = "Kuka-IIWA";
 
 unsigned long long controller_counter = 0;
 
-const bool simulation = true;
-// const bool simulation = false;
+// const bool simulation = true;
+const bool simulation = false;
 
 // redis keys:
 // - write:
@@ -117,10 +117,10 @@ int main() {
 
 	VectorXd motion_primitive_torques = VectorXd::Zero(dof);
 
-	motion_primitive->_posori_task->_kp_pos = 80.0;
-	motion_primitive->_posori_task->_kv_pos = 17.0;
-	motion_primitive->_posori_task->_kp_ori = 80.0;
-	motion_primitive->_posori_task->_kv_ori = 17.0;
+	motion_primitive->_posori_task->_kp_pos = 50.0;
+	motion_primitive->_posori_task->_kv_pos = 10.0;
+	motion_primitive->_posori_task->_kp_ori = 50.0;
+	motion_primitive->_posori_task->_kv_ori = 10.0;
 
 	motion_primitive->_joint_task->_kp = 10.0;
 	motion_primitive->_joint_task->_kv = 5.0;
@@ -129,7 +129,7 @@ int main() {
 	cVector3d h_position = cVector3d(0,0,0);
 	cVector3d h_velocity = cVector3d(0,0,0);
 	cVector3d h_force_feedback = cVector3d(0,0,0);
-	double workspace_scaling = 2.5;
+	double workspace_scaling = 3.5;
 
 	Vector3d ws_bound_up = Vector3d(0.02, 0, 0.02);
 	Vector3d ws_bound_down = Vector3d(-0.02, 0, -0.02);
