@@ -5,8 +5,8 @@ SET(CMAKE_CXX_FLAGS "-std=c++11")
 # set common source
 set (IIWA_FORCECONTROL_COMMON_SOURCE
 	# ${PROJECT_SOURCE_DIR}/src/redis/RedisClient.h
-	${PROJECT_SOURCE_DIR}/src/timer/LoopTimer.cpp
-	${PROJECT_SOURCE_DIR}/src/tasks/PosOriTask.cpp
+	# ${PROJECT_SOURCE_DIR}/src/timer/LoopTimer.cpp
+	# ${PROJECT_SOURCE_DIR}/src/tasks/PosOriTask.cpp
 	# ${PROJECT_SOURCE_DIR}/src/tasks/OrientationTask.h
 	# ${PROJECT_SOURCE_DIR}/src/tasks/HybridPositionTask.h
 	)
@@ -61,6 +61,11 @@ find_package(SAI2-URDF REQUIRED)
 include_directories(${SAI2-URDF_INCLUDE_DIRS})
 add_definitions(${SAI2-URDF_DEFINITIONS})
 
+# - SAI2-PRIMITIVES
+find_package(SAI2-PRIMITIVES REQUIRED)
+include_directories(${SAI2-PRIMITIVES_INCLUDE_DIRS})
+add_definitions(${SAI2-PRIMITIVES_DEFINITIONS})
+
 # - glfw3
 find_package(glfw3 QUIET)
 find_library(GLFW_LIBRARY glfw)
@@ -88,6 +93,7 @@ set(IIWA_FORCECONTROL_COMMON_LIBRARIES
 	${SAI2-GRAPHICS_LIBRARIES}
 	${SAI2-URDF_LIBRARIES}
 	${SAI2-SIMULATION_LIBRARIES}
+	${SAI2-PRIMITIVES_LIBRARIES}
 	${HIREDIS_LIBRARY}
 	${GLFW_LIBRARY}
 	${JSONCPP_LIBRARY}
@@ -106,5 +112,6 @@ set (IIWA_FORCECONTROL_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 # add_subdirectory(02-demo_cs225a)
 # add_subdirectory(03-multi_contact_validation)
 # add_subdirectory(04-passivity_demo)
-add_subdirectory(04-passivity_demo_square_ee)
+# add_subdirectory(04-passivity_demo_square_ee)
 # add_subdirectory(05-contact_primitives)
+add_subdirectory(07-haptic_demo)
