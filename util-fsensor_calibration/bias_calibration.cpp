@@ -26,8 +26,8 @@ const std::string robot_name = "Kuka-IIWA";
 
 unsigned long long controller_counter = 0;
 
-int simulation = true;
-// int simulation = false;
+// int simulation = true;
+int simulation = false;
 
 // write xml file
 const string path_to_bias_file = "../../util-fsensor_calibration/calibration_files/sensor_bias.xml";
@@ -99,8 +99,8 @@ int main() {
 
 	motion_primitive->_posori_task->_kp_pos = 50.0;
 	motion_primitive->_posori_task->_kv_pos = 10.0;
-	motion_primitive->_posori_task->_kp_ori = 50.0;
-	motion_primitive->_posori_task->_kv_ori = 10.0;
+	motion_primitive->_posori_task->_kp_ori = 80.0;
+	motion_primitive->_posori_task->_kv_ori = 14.0;
 
 	motion_primitive->_joint_task->_kp = 0.0;
 	motion_primitive->_joint_task->_kv = 5.0;
@@ -190,7 +190,8 @@ int main() {
 		{
 			if(current_point == 0)
 			{
-				if((motion_primitive->_posori_task->_current_orientation - initial_orientation).norm() < 0.001)
+				cout << "error : " << (motion_primitive->_posori_task->_current_orientation - initial_orientation).norm() << endl;
+				if((motion_primitive->_posori_task->_current_orientation - initial_orientation).norm() < 0.05)
 				{
 					current_hold_step = 0;
 					current_point = 1;
@@ -203,7 +204,7 @@ int main() {
 
 				if(current_motion_step >= motion_steps)
 				{
-					if((motion_primitive->_posori_task->_current_orientation - motion_primitive->_posori_task->_desired_orientation).norm() < 0.001)
+					if((motion_primitive->_posori_task->_current_orientation - motion_primitive->_posori_task->_desired_orientation).norm() < 0.05)
 					{
 						current_hold_step = 0;
 						bias_force_moments_tmp.setZero(6);

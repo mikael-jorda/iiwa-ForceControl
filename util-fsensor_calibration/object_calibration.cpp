@@ -27,13 +27,13 @@ const std::string robot_name = "Kuka-IIWA";
 
 unsigned long long controller_counter = 0;
 
-int simulation = true;
-// int simulation = false;
+// int simulation = true;
+int simulation = false;
 
 // write xml file
 const string path_to_calibration_file = "../../util-fsensor_calibration/calibration_files/object_calibration.xml";
 const string path_to_bias_file = "../../util-fsensor_calibration/calibration_files/sensor_bias.xml";
-const string tool_name = "test";
+const string tool_name = "cube";
 void writeXml(const Vector3d object_com, const double object_mass);
 
 // read sensor bias
@@ -118,20 +118,20 @@ int main() {
 
 	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 0.0, 0.0));
 	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(45.0, 0.0, -90.0));
-	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 30.0, -30.0));
-	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 30.0, -30.0));
-	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 30.0, -30.0));
-	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 30.0, -30.0));
-	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 30.0, -30.0));
-	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 30.0, -30.0));
+	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 30.0, 30.0));
+	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 30.0, 30.0));
+	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 30.0, 30.0));
+	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 30.0, 30.0));
+	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 30.0, 30.0));
+	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(0.0, 30.0, 30.0));
 	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-45.0, 0.0, 0.0));
 	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-45.0, 0.0, 0.0));
-	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-.0, -30.0, 30.0));
-	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-.0, -30.0, 30.0));
-	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-.0, -30.0, 30.0));
-	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-.0, -30.0, 30.0));
-	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-.0, -30.0, 30.0));
-	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-.0, -30.0, 30.0));
+	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-.0, -30.0, -30.0));
+	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-.0, -30.0, -30.0));
+	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-.0, -30.0, -30.0));
+	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-.0, -30.0, -30.0));
+	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-.0, -30.0, -30.0));
+	last_joint_positions_increment.push_back(M_PI/180.0*Vector3d(-.0, -30.0, -30.0));
 
 	int motion_steps = 2000;
 	int hold_steps = 1500;
@@ -192,7 +192,8 @@ int main() {
 
 				if(current_motion_step >= motion_steps)
 				{
-					if((joint_task->_current_position - joint_task->_desired_position).norm() < 0.001)
+					// cout << "error : " << (joint_task->_current_position - joint_task->_desired_position).norm() << endl;
+					if((joint_task->_current_position - joint_task->_desired_position).norm() < 0.1)
 					{
 						current_hold_step = 0;
 						mean_force.setZero();
@@ -221,8 +222,8 @@ int main() {
 		{
 			if(current_hold_step > hold_steps/4 && current_hold_step <= 3*hold_steps/4)
 			{
-				mean_force += sensed_force_moment.head(3);
-				mean_moment += sensed_force_moment.tail(3);
+				mean_force -= sensed_force_moment.head(3);   // the driver gives the force and moment applied by the sensor to the environment
+				mean_moment -= sensed_force_moment.tail(3);
 			}
 
 			if(current_hold_step >= hold_steps)
@@ -279,7 +280,8 @@ int main() {
 		{
 			// cout << "ee orientation :\n" << ori_task->_current_orientation << endl;
 			// cout << "command torques : " << command_torques.transpose() << endl;
-			// cout << endl;
+			cout << "sensed_force_moment : " << sensed_force_moment.transpose() << endl;
+			cout << endl;
 		}
 
 
@@ -314,8 +316,8 @@ void writeXml(Vector3d object_com, double object_mass)
 		file << "<?xml version=\"1.0\" ?>\n\n";
 		file << "<tool name=\"" << tool_name << "\">\n";
 		file << "\t<inertial>\n";
-		file << "\t\t<origin xyz=\"" << object_com.transpose() << "\">\n";
-		file << "\t\t<mass value=\"" << object_mass << "\">\n";
+		file << "\t\t<origin xyz=\"" << object_com.transpose() << "\"/>\n";
+		file << "\t\t<mass value=\"" << object_mass << "\"/>\n";
 		file << "\t</inertial>\n";
 		file << "</tool>" << endl;
 		file.close();
