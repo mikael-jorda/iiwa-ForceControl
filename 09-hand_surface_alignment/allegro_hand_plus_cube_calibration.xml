@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+
+<tool name="allegro_hand_cube">
+	<inertial>
+		<origin xyz="0.0993704 0.0049023 0.0190144"/>
+		<mass value="1.29414"/>
+		<!-- <origin xyz="0.0493704 0.0049023 0.0190144"/> -->
+		<!-- <mass value="1.13414"/> -->
+	</inertial>
+</tool>

@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+
+<tool name="cube">
+	<inertial>
+		<origin xyz="-8.96333e-05   0.00630594    0.0240674"/>
+		<mass value="0.28163"/>
+	</inertial>
+</tool>

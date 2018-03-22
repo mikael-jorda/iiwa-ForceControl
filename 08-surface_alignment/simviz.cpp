@@ -107,7 +107,7 @@ int main() {
 	Eigen::Affine3d sensor_frame = Eigen::Affine3d::Identity();
 	sensor_frame.translation() = Eigen::Vector3d(0.0, 0.0, 0.02);
 	force_sensor = new ForceSensorSim(robot_name, "link7", sensor_frame, robot);
-	force_sensor->enableFilter(0.075);
+	force_sensor->enableFilter(0.001);
 	sensed_force_moment = Eigen::VectorXd::Zero(6);
 
 	/*------- Set up visualization -------*/
