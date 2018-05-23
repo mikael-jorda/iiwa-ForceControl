@@ -20,7 +20,7 @@
 using namespace std;
 
 const string world_file = "../resources/04-passivity_demo_square_ee/world.urdf";
-const string robot_file = "../resources/04-passivity_demo_square_ee/kuka_iiwa.urdf";
+const string robot_file = "../resources/04-passivity_demo_square_ee/iiwa7.urdf";
 const string robot_name = "Kuka-IIWA";
 const string camera_name = "camera_fixed";
 const string plate_file = "../resources/04-passivity_demo_square_ee/plate.urdf";
@@ -100,12 +100,12 @@ int main() {
 	// create force sensor
 	Eigen::Affine3d sensor_frame = Eigen::Affine3d::Identity();
 	sensor_frame.translation() = Eigen::Vector3d(0.0, 0.0, 0.02);
-	force_sensor = new ForceSensorSim(robot_name, "link6", sensor_frame, robot);
-	force_sensor->enableFilter(0.075);
+	force_sensor = new ForceSensorSim(robot_name, "link7", sensor_frame, robot);
+	force_sensor->enableFilter(0.0075);
 
 	auto force_display = new ForceSensorDisplay(force_sensor, graphics);
 	// force_display->_force_line_scale = 10.0;
-	// force_display->_moment_line_scale = 10.0;
+	force_display->_moment_line_scale = 10.0;
 
 	// set initial position to match kuka driver
 	sim->setJointPosition(robot_name, 0, 90.0/180.0*M_PI);
@@ -312,6 +312,7 @@ void simulation(Sai2Model::Sai2Model* robot, Sai2Model::Sai2Model* plate, Simula
 		plate->updateKinematics();
 
 		plate_qd(0) = 5.0/180.0*M_PI*sin(2*M_PI*0.12*time);
+		// plate_qd(0) = 9.0/180.0;
 		plate_qd(1) = 7.0/180.0*M_PI*sin(2*M_PI*0.08*time);
 
 		plate_torques = -1000.0*(plate->_q - plate_qd) - 75.0*plate->_dq;

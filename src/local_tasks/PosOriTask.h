@@ -303,6 +303,10 @@ public:
 	Eigen::VectorXd _PO_buffer_force;
 	Eigen::VectorXd _PO_buffer_moment;
 
+	const int _PC_max_counter = 10;
+	int _PC_force_counter = _PC_max_counter;
+	int _PC_moment_counter = _PC_max_counter;
+
 	// task force (6D vector of forces and moments at control frame)
 	Eigen::VectorXd _task_force;   // robot frame
 

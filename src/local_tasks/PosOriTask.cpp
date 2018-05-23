@@ -178,28 +178,36 @@ void PosOriTask::computeTorques(Eigen::VectorXd& task_joint_torques)
 			Eigen::Vector3d deltaf = _sensed_force - _desired_force;
 			double deltaf_square = deltaf.transpose()*_sigma_force*deltaf;
 
-			if(_PO_force < 0)
-			{
-				// update RC value
-				_Rc_force = (_Rc_force + (1-2*atan(-_PO_force)/M_PI)*deltaf_square) / (1+deltaf_square);
-				
-				if(_Rc_force < 0) // should never happen
-				{
-					_Rc_force = 0;
-				}
-				std::cout << "Rc force : " << _Rc_force << std::endl;
-			}
-			else
+			if(_PC_force_counter == 0)
 			{
 
-				_Rc_force = (_Rc_force + 1.0*deltaf_square)/(1+deltaf_square);
-				if(_Rc_force > 1) // should never happen
+				if(_PO_force < 0)
 				{
-					_Rc_force = 1;
+					// update RC value
+					_Rc_force = (_Rc_force + (1-2*atan(-_PO_force)/M_PI)*deltaf_square) / (1+deltaf_square);
+					
+					if(_Rc_force < 0) // should never happen
+					{
+						_Rc_force = 0;
+					}
+					// std::cout << "Rc force : " << _Rc_force << std::endl;
 				}
+				else
+				{
+
+					_Rc_force = (_Rc_force + 1.0*deltaf_square)/(1+deltaf_square);
+					if(_Rc_force > 1) // should never happen
+					{
+						_Rc_force = 1;
+					}
+				}
+				// update PO value to take dissipated energy into account
+				_PO_force += (tmp_Rc-_Rc_force)*Vc_square*dt;
+
+				_PC_force_counter = _PC_max_counter;
 			}
-			// update PO value to take dissipated energy into account
-			_PO_force += (tmp_Rc-_Rc_force)*Vc_square*dt;
+
+			_PC_force_counter--;
 
 		}
 
@@ -264,28 +272,41 @@ void PosOriTask::computeTorques(Eigen::VectorXd& task_joint_torques)
 			Eigen::Vector3d deltaf = _sensed_moment - _desired_moment;
 			double deltaf_square = deltaf.transpose()*_sigma_moment*deltaf;
 
-			if(_PO_moment < 0)
-			{
-				// update RC value
-				_Rc_moment = (_Rc_moment + (1-2*atan(-_PO_moment)/M_PI)*deltaf_square) / (1+deltaf_square);
-				
-				if(_Rc_moment < 0) // should never happen
-				{
-					_Rc_moment = 0;
-				}
-				std::cout << "Rc moment : " << _Rc_moment << std::endl;
-			}
-			else
+			if(_PC_moment_counter == 0)
 			{
 
-				_Rc_moment = (_Rc_moment + 1.0*deltaf_square)/(1+deltaf_square);
-				if(_Rc_moment > 1) // should never happen
+				if(_PO_moment < 0)
 				{
-					_Rc_moment = 1;
+					// update RC value
+					// _Rc_moment = 1-2*atan(-_PO_moment)/M_PI;
+					_Rc_moment = (_Rc_moment + (1-2*atan(-_PO_moment)/M_PI)*deltaf_square) / (1+deltaf_square);
+					
+					if(_Rc_moment < 0) // should never happen
+					{
+						_Rc_moment = 0;
+					}
+					// std::cout << "Rc moment : " << _Rc_moment << std::endl;
+					// double delta_rc_prev = ((p_input - p_output)*dt - _PO_moment)/(Vc_square*dt);
+					// std::cout << "delta RC previsionel : " << delta_rc_prev << std::endl;
 				}
+				else
+
+				{
+
+					// _Rc_moment = 1.0;
+					_Rc_moment = (_Rc_moment + 1.0*deltaf_square)/(1+deltaf_square);
+					if(_Rc_moment > 1) // should never happen
+					{
+						_Rc_moment = 1;
+					}
+				}
+				// update PO value to take dissipated energy into account
+				_PO_moment += (tmp_Rc-_Rc_moment)*Vc_square*dt;
+
+				_PC_moment_counter = _PC_max_counter;
 			}
-			// update PO value to take dissipated energy into account
-			_PO_moment += (tmp_Rc-_Rc_moment)*Vc_square*dt;
+
+			_PC_moment_counter--;
 
 		}
 

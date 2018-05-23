@@ -7,7 +7,7 @@
 #include <iostream>
 #include <string>
 
-#include "tasks/PosOriTask.h"
+#include "local_tasks/PosOriTask.h"
 
 #include <signal.h>
 bool runloop = true;
@@ -23,8 +23,7 @@ void stop(int){runloop = false;}
 using namespace std;
 int state;
 
-const string world_file = "../resources/04-passivity_demo_square_ee/world.urdf";
-const string robot_file = "../resources/04-passivity_demo_square_ee/kuka_iiwa.urdf";
+const string robot_file = "../resources/04-passivity_demo_square_ee/iiwa7.urdf";
 const std::string robot_name = "Kuka-IIWA";
 
 unsigned long long controller_counter = 0;
@@ -39,12 +38,14 @@ std::string JOINT_TORQUES_COMMANDED_KEY;
 std::string JOINT_ANGLES_KEY;
 std::string JOINT_VELOCITIES_KEY;
 std::string EE_FORCE_SENSOR_KEY;
-const std::string MASSMATRIX_KEY = "sai2::KUKA_IIWA::sensors::massmatrix";
 
 // - data log
+const std::string EE_DESIRED_MOMENT_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::desired_moment";
+const std::string EE_SENSED_MOMENT_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::sensed_moment";
 const std::string EE_DESIRED_FORCE_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::desired_force";
 const std::string EE_SENSED_FORCE_LOGGED_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::sensed_force";
-const std::string RC_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::Rc";
+const std::string RC_FORCE_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::Rc_force";
+const std::string RC_MOMENT_KEY = "sai2::iiwaForceControl::iiwaBot::simulation::data_log::Rc_moment";
 
 void sighandler(int sig)
 { runloop = false; }
@@ -64,8 +65,6 @@ int main() {
 		JOINT_VELOCITIES_KEY = "sai2::KUKA_IIWA::sensors::dq";
 		EE_FORCE_SENSOR_KEY = "sai2::optoforceSensor::6Dsensor::force";
 	}
-
-	std::cout << "Loading URDF world model file: " << world_file << std::endl;
 
 	// start redis client
 	HiredisServerInfo info;
@@ -104,18 +103,18 @@ int main() {
 	double joint_kv = 1.0;
 
 	// position and orientation task
-	const string control_link = "link6";
+	const string control_link = "link7";
 	Eigen::Affine3d control_frame = Eigen::Affine3d::Identity();
-	control_frame.translation() = Eigen::Vector3d(0.0, 0.0, 0.12);
+	control_frame.translation() = Eigen::Vector3d(0.0, 0.0, 0.16);
 	Eigen::Affine3d sensor_frame = Eigen::Affine3d::Identity();
 	sensor_frame.translation() = Eigen::Vector3d(0.0, 0.0, 0.02);
 
-	auto posori_task = new PosOriTask(robot, "link6", control_frame, sensor_frame);
+	auto posori_task = new PosOriTask(robot, "link7", control_frame, sensor_frame);
 
-	posori_task->_kp_ori = 600.0;
-	posori_task->_kv_ori = 50.0;
-	posori_task->_kp_pos = 150.0;
-	posori_task->_kv_pos = 22.0;
+	posori_task->_kp_ori = 50.0;
+	posori_task->_kv_ori = 14.0;
+	posori_task->_kp_pos = 50.0;
+	posori_task->_kv_pos = 14.0;
 
 	Eigen::VectorXd posori_task_torques(dof);
 
@@ -163,18 +162,7 @@ int main() {
 		// update the model 20 times slower
 		if(controller_counter%20 == 0)
 		{
-			robot->updateKinematics();
-			if(!simulation)
-			{
-				redis_client.getEigenMatrixDerived(MASSMATRIX_KEY, robot->_M);
-				robot->_M_inv = robot->_M.inverse();
-			}
-			else
-			{
-				robot->updateDynamics();
-			}
-
-			robot->coriolisForce(coriolis);
+			robot->updateModel();
 
 			// ----------- tasks
 			N_prec = Eigen::MatrixXd::Identity(dof,dof);
@@ -261,10 +249,11 @@ int main() {
 				state = OL_FORCE_CONTROL;
 				posori_task->setFullMomentControl();
 				posori_task->setClosedLoopMomentControl();
-				posori_task->disableMomentPassivity();
+				// posori_task->_desired_moment << 0.1, 0.1, 0;
+				// posori_task->disableMomentPassivity();
 				posori_task->_kp_moment = 1.5;
-				posori_task->_ki_moment = 0.2;
-				posori_task->_kv_moment = 9.0;
+				posori_task->_ki_moment = 0.9;
+				posori_task->_kv_moment = 7.0;
 
 				// posori_task->_desired_moment << 0.0, 0.7, 0.0;
 				// posori_task->_desired_moment << 1.5, 0.7, 1.0;
@@ -299,7 +288,7 @@ int main() {
 				posori_task->_kp_force = 1.0;
 				posori_task->_ki_force = 0.7;
 				posori_task->_kv_force = 20.0;
-				// posori_task->_desired_force = 10.0*localz;
+				posori_task->_desired_force = 10.0*localz;
 				posori_task->setClosedLoopForceControl();
 
 
@@ -339,9 +328,9 @@ int main() {
 			// std::cout << "ee position : " << posori_task->_current_position.transpose() << std::endl;
 			// std::cout << "coriolis : " << coriolis.transpose() << std::endl;
 			// std::cout << std::endl;
-			// cout << "sensed force control frame  : " << posori_task->_sensed_force.transpose() << endl;
-			// cout << "sensed moment control frame : " << posori_task->_sensed_moment.transpose() << endl;
-			// cout << endl;
+			cout << "sensed force control frame  : " << posori_task->_sensed_force.transpose() << endl;
+			cout << "sensed moment control frame : " << posori_task->_sensed_moment.transpose() << endl;
+			cout << endl;
 		}
 
 		// compute joint torques
@@ -355,9 +344,12 @@ int main() {
 
 		redis_client.setEigenMatrixDerived(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
-		redis_client.setEigenMatrixDerived(EE_DESIRED_FORCE_LOGGED_KEY, posori_task->_desired_force);
+		redis_client.setEigenMatrixDerived(EE_DESIRED_FORCE_LOGGED_KEY, posori_task->_current_orientation.transpose() * posori_task->_desired_force);
+		redis_client.setEigenMatrixDerived(EE_DESIRED_MOMENT_LOGGED_KEY, posori_task->_current_orientation.transpose() * posori_task->_desired_moment);
 		redis_client.setEigenMatrixDerived(EE_SENSED_FORCE_LOGGED_KEY, sensed_force_moment.head(3));
-		redis_client.setCommandIs(RC_KEY,std::to_string(posori_task->_Rc_force));
+		redis_client.setEigenMatrixDerived(EE_SENSED_MOMENT_LOGGED_KEY, sensed_force_moment.tail(3));
+		redis_client.setCommandIs(RC_FORCE_KEY,std::to_string(posori_task->_Rc_force));
+		redis_client.setCommandIs(RC_MOMENT_KEY,std::to_string(posori_task->_Rc_moment));
 
 		controller_counter++;
 
