@@ -6,11 +6,11 @@ SET(CMAKE_CXX_FLAGS "-std=c++11")
 set (IIWA_FORCECONTROL_COMMON_SOURCE
 	# ${PROJECT_SOURCE_DIR}/src/redis/RedisClient.h
 	# ${PROJECT_SOURCE_DIR}/src/timer/LoopTimer.cpp
-	${PROJECT_SOURCE_DIR}/src/local_tasks/PosOriTask.cpp
+	# ${PROJECT_SOURCE_DIR}/src/local_tasks/PosOriTask.cpp
 	# ${PROJECT_SOURCE_DIR}/src/tasks/OrientationTask.h
 	# ${PROJECT_SOURCE_DIR}/src/tasks/HybridPositionTask.h
 	)
-include_directories(${PROJECT_SOURCE_DIR}/src)
+# include_directories(${PROJECT_SOURCE_DIR}/src)
 
 
 # - eigen3
@@ -66,6 +66,9 @@ find_package(SAI2-PRIMITIVES REQUIRED)
 include_directories(${SAI2-PRIMITIVES_INCLUDE_DIRS})
 add_definitions(${SAI2-PRIMITIVES_DEFINITIONS})
 
+# - SAI2-INTERFACES
+find_package(SAI2-INTERFACES REQUIRED)
+
 # - glfw3
 find_package(glfw3 QUIET)
 find_library(GLFW_LIBRARY glfw)
@@ -112,9 +115,10 @@ set (IIWA_FORCECONTROL_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 # add_subdirectory(02-demo_cs225a)
 # add_subdirectory(03-multi_contact_validation)
 # add_subdirectory(04-passivity_demo)
-add_subdirectory(04-passivity_demo_square_ee)
+# add_subdirectory(04-passivity_demo_square_ee)
 # add_subdirectory(05-contact_primitives)
 # add_subdirectory(07-haptic_demo)
-add_subdirectory(08-surface_alignment)
-add_subdirectory(09-hand_surface_alignment)
+# add_subdirectory(08-surface_alignment)
+# add_subdirectory(09-hand_surface_alignment)
+add_subdirectory(10-antenna_experiments)
 # add_subdirectory(util-fsensor_calibration)
